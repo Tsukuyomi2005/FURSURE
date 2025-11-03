@@ -19,6 +19,7 @@ export function InventoryModal({ isOpen, onClose, item }: InventoryModalProps) {
     expiryDate: ''
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (item) {
@@ -64,18 +65,25 @@ export function InventoryModal({ isOpen, onClose, item }: InventoryModalProps) {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
     if (!validateForm()) return;
 
-    if (item) {
-      updateItem(item.id, formData);
-    } else {
-      addItem(formData);
+    setIsSubmitting(true);
+    try {
+      if (item) {
+        await updateItem(item.id, formData);
+      } else {
+        await addItem(formData);
+      }
+      onClose();
+    } catch (error) {
+      console.error('Failed to save item:', error);
+      setErrors({ submit: 'Failed to save item. Please try again.' });
+    } finally {
+      setIsSubmitting(false);
     }
-    
-    onClose();
   };
 
   if (!isOpen) return null;
@@ -185,6 +193,12 @@ export function InventoryModal({ isOpen, onClose, item }: InventoryModalProps) {
               {errors.expiryDate && <p className="text-red-500 text-sm mt-1">{errors.expiryDate}</p>}
             </div>
 
+            {errors.submit && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                <p className="text-red-600 text-sm">{errors.submit}</p>
+              </div>
+            )}
+
             <div className="flex gap-3 pt-4">
               <button
                 type="button"
@@ -195,9 +209,10 @@ export function InventoryModal({ isOpen, onClose, item }: InventoryModalProps) {
               </button>
               <button
                 type="submit"
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                disabled={isSubmitting}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {item ? 'Update' : 'Add'} Item
+                {isSubmitting ? 'Saving...' : (item ? 'Update' : 'Add') + ' Item'}
               </button>
             </div>
           </form>
