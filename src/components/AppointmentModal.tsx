@@ -66,32 +66,37 @@ export function AppointmentModal({ isOpen, onClose, date, time }: AppointmentMod
     setShowPayment(true);
   };
 
-  const handlePaymentSuccess = (paymentData: any) => {
-    addAppointment({
-      ...formData,
-      date,
-      time,
-      status: 'pending',
-      serviceType: formData.serviceType,
-      price: selectedService?.price || 0,
-      paymentStatus: 'down_payment_paid',
-      paymentData
-    });
+  const handlePaymentSuccess = async (paymentData: any) => {
+    try {
+      await addAppointment({
+        ...formData,
+        date,
+        time,
+        status: 'pending',
+        serviceType: formData.serviceType,
+        price: selectedService?.price || 0,
+        paymentStatus: 'down_payment_paid',
+        paymentData
+      });
 
-    toast.success('Appointment booked successfully! Down payment processed. You will receive a confirmation email.');
-    
-    setFormData({
-      petName: '',
-      ownerName: '',
-      phone: '',
-      email: '',
-      reason: '',
-      serviceType: 'consultation',
-      vet: 'Dr. Smith'
-    });
-    setErrors({});
-    setShowPayment(false);
-    onClose();
+      toast.success('Appointment booked successfully! Down payment processed. You will receive a confirmation email.');
+      
+      setFormData({
+        petName: '',
+        ownerName: '',
+        phone: '',
+        email: '',
+        reason: '',
+        serviceType: 'consultation',
+        vet: 'Dr. Smith'
+      });
+      setErrors({});
+      setShowPayment(false);
+      onClose();
+    } catch (error) {
+      console.error('Failed to book appointment:', error);
+      toast.error('Failed to book appointment. Please try again.');
+    }
   };
 
   if (!isOpen) return null;

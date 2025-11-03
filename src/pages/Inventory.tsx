@@ -76,9 +76,13 @@ export function Inventory() {
     setIsModalOpen(true);
   };
 
-  const handleDelete = (id: string) => {
-    deleteItem(id);
-    setDeleteConfirm(null);
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteItem(id);
+      setDeleteConfirm(null);
+    } catch (error) {
+      console.error('Failed to delete item:', error);
+    }
   };
 
   const handleModalClose = () => {

@@ -51,10 +51,10 @@ export function Appointments() {
       updates.time = newTime;
     }
 
-    updateAppointment(appointmentId, updates);
-
-    // Send email notification
     try {
+      await updateAppointment(appointmentId, updates);
+
+      // Send email notification
       let emailType = '';
       let emailData = {};
 
@@ -98,7 +98,8 @@ export function Appointments() {
       await sendEmail(appointment.email, emailType, emailData);
       toast.success(`Appointment ${status} and email notification sent`);
     } catch (error) {
-      toast.error('Failed to send email notification');
+      console.error('Failed to update appointment or send email:', error);
+      toast.error('Failed to update appointment or send email notification');
     }
   };
 

@@ -1,5 +1,4 @@
 /* eslint-disable */
-// @ts-nocheck - This is a generated file
 /**
  * Generated `api` utility.
  *
@@ -9,14 +8,17 @@
  * @module
  */
 
+import type * as appointments from "../appointments.js";
+import type * as auth from "../auth.js";
+import type * as http from "../http.js";
+import type * as inventory from "../inventory.js";
+import type * as router from "../router.js";
+
 import type {
   ApiFromModules,
   FilterApi,
   FunctionReference,
 } from "convex/server";
-import type * as auth from "../auth.js";
-import type * as http from "../http.js";
-import type * as router from "../router.js";
 
 /**
  * A utility for referencing Convex functions in your app's API.
@@ -27,15 +29,21 @@ import type * as router from "../router.js";
  * ```
  */
 declare const fullApi: ApiFromModules<{
+  appointments: typeof appointments;
   auth: typeof auth;
   http: typeof http;
+  inventory: typeof inventory;
   router: typeof router;
 }>;
+declare const fullApiWithMounts: typeof fullApi;
+
 export declare const api: FilterApi<
-  typeof fullApi,
+  typeof fullApiWithMounts,
   FunctionReference<any, "public">
 >;
 export declare const internal: FilterApi<
-  typeof fullApi,
+  typeof fullApiWithMounts,
   FunctionReference<any, "internal">
 >;
+
+export declare const components: {};
