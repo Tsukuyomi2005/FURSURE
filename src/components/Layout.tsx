@@ -8,7 +8,8 @@ import {
   Package, 
   Heart,
   LogOut,
-  FileText
+  FileText,
+  Clock
 } from 'lucide-react';
 import { useRoleStore } from '../stores/roleStore';
 import { cn } from '../lib/utils';
@@ -29,6 +30,7 @@ export function Layout({ children }: LayoutProps) {
     { name: 'Dashboard', href: '/dashboard', icon: Home, current: location.pathname === '/dashboard' },
     { name: 'Appointments', href: '/appointments', icon: Calendar, current: location.pathname === '/appointments' },
     ...(hasFullAccess ? [
+      { name: 'Schedule Management', href: '/schedule-management', icon: Clock, current: location.pathname === '/schedule-management' },
       { name: 'Inventory & Analytics', href: '/inventory', icon: Package, current: location.pathname === '/inventory' },
     ] : [
       { name: 'Pet Records', href: '/pet-records', icon: FileText, current: location.pathname === '/pet-records' },

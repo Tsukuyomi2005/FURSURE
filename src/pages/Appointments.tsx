@@ -2,6 +2,7 @@ import { useState, type ChangeEvent } from 'react';
 import Calendar from 'react-calendar';
 import { Clock, Plus, User, Phone, Mail, FileText } from 'lucide-react';
 import { useAppointmentStore } from '../stores/appointmentStore';
+import { useScheduleStore } from '../stores/scheduleStore';
 import { useRoleStore } from '../stores/roleStore';
 import { AppointmentModal } from '../components/AppointmentModal';
 import { AppointmentActions } from '../components/AppointmentActions';
@@ -12,6 +13,7 @@ import 'react-calendar/dist/Calendar.css';
 
 export function Appointments() {
   const { appointments, updateAppointment } = useAppointmentStore();
+  const { isTimeSlotAvailable } = useScheduleStore();
   const { role } = useRoleStore();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -25,13 +27,47 @@ export function Appointments() {
     '16:00', '16:30', '17:00', '17:30'
   ];
 
+  // Helper function to convert 24-hour time to 12-hour AM/PM format
+  const formatTime12Hour = (time24: string): string => {
+    const [hours, minutes] = time24.split(':').map(Number);
+    const period = hours >= 12 ? 'PM' : 'AM';
+    const hours12 = hours % 12 || 12;
+    return `${hours12}:${minutes.toString().padStart(2, '0')} ${period}`;
+  };
+
+  // Helper function to format date as YYYY-MM-DD without timezone issues
+  const formatDateLocal = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  // Helper function to parse YYYY-MM-DD to Date in local timezone
+  const parseDateLocal = (dateStr: string): Date => {
+    const [year, month, day] = dateStr.split('-').map(Number);
+    return new Date(year, month - 1, day);
+  };
+
   const selectedDateStr = selectedDate.toDateString();
-  const dayAppointments = appointments.filter(apt => 
-    new Date(apt.date).toDateString() === selectedDateStr
-  );
+  const selectedDateISO = formatDateLocal(selectedDate);
+  const dayAppointments = appointments.filter(apt => {
+    // Parse appointment date and compare
+    const aptDate = parseDateLocal(apt.date);
+    return aptDate.toDateString() === selectedDateStr;
+  });
 
   const isSlotBooked = (time: string) => {
     return dayAppointments.some(apt => apt.time === time);
+  };
+
+  const isSlotScheduled = (time: string) => {
+    // For pet owners, check if time is available in schedules
+    if (!hasFullAccess) {
+      return isTimeSlotAvailable(selectedDateISO, time);
+    }
+    // For staff/vet, show all slots (they can override)
+    return true;
   };
 
   const handleSlotClick = (time: string) => {
@@ -143,19 +179,29 @@ export function Appointments() {
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {timeSlots.map((time) => {
               const isBooked = isSlotBooked(time);
+              const isScheduled = isSlotScheduled(time);
+              const isAvailable = !isBooked && (hasFullAccess || isScheduled);
+              
               return (
                 <button
                   key={time}
                   onClick={() => handleSlotClick(time)}
-                  disabled={isBooked}
+                  disabled={!isAvailable}
                   className={`p-3 rounded-lg text-sm font-medium transition-colors ${
-                    isBooked
+                    !isAvailable
                       ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                       : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
                   }`}
+                  title={
+                    !isAvailable
+                      ? isBooked
+                        ? 'This slot is already booked'
+                        : 'This slot is not available in the schedule'
+                      : 'Click to book this slot'
+                  }
                 >
                   <Clock className="h-4 w-4 inline mr-1" />
-                  {time}
+                  {!hasFullAccess ? formatTime12Hour(time) : time}
                 </button>
               );
             })}
@@ -238,7 +284,7 @@ export function Appointments() {
           setIsModalOpen(false);
           setSelectedSlot(null);
         }}
-        date={selectedDate.toISOString().split('T')[0]}
+        date={selectedDateISO}
         time={selectedSlot || ''}
       />
     </div>

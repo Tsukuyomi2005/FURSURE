@@ -7,6 +7,7 @@ import { Inventory } from './pages/Inventory';
 import { Appointments } from './pages/Appointments';
 import { PetRecords } from './pages/PetRecords';
 import { LandingPage } from './pages/LandingPage';
+import { ScheduleManagement } from './pages/ScheduleManagement';
 import { useRoleStore } from './stores/roleStore';
 import { useEffect } from 'react';
 
@@ -46,7 +47,10 @@ export default function App() {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/appointments" element={<Appointments />} />
             {hasFullAccess ? (
-              <Route path="/inventory" element={<Inventory />} />
+              <>
+                <Route path="/schedule-management" element={<ScheduleManagement />} />
+                <Route path="/inventory" element={<Inventory />} />
+              </>
             ) : (
               <Route path="/pet-records" element={<PetRecords />} />
             )}

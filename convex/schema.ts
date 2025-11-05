@@ -40,6 +40,13 @@ const applicationTables = {
     ),
     paymentData: v.optional(v.any()),
   }).index("by_date", ["date"]),
+  schedules: defineTable({
+    date: v.string(),
+    startTime: v.string(),
+    endTime: v.string(),
+    veterinarians: v.array(v.string()),
+    notes: v.optional(v.string()),
+  }).index("by_date", ["date"]),
 };
 
 export default defineSchema({

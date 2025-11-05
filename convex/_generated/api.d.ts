@@ -13,6 +13,7 @@ import type * as auth from "../auth.js";
 import type * as http from "../http.js";
 import type * as inventory from "../inventory.js";
 import type * as router from "../router.js";
+import type * as schedules from "../schedules.js";
 
 import type {
   ApiFromModules,
@@ -34,6 +35,7 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   inventory: typeof inventory;
   router: typeof router;
+  schedules: typeof schedules;
 }>;
 declare const fullApiWithMounts: typeof fullApi;
 

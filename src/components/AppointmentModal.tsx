@@ -1,6 +1,9 @@
-import { useState, type ChangeEvent, type FormEvent } from 'react';
+import { useState, useEffect, type ChangeEvent, type FormEvent } from 'react';
 import { X, CreditCard } from 'lucide-react';
 import { useAppointmentStore } from '../stores/appointmentStore';
+import { useScheduleStore } from '../stores/scheduleStore';
+import { usePetRecordsStore } from '../stores/petRecordsStore';
+import { useRoleStore } from '../stores/roleStore';
 import { PaymentModal } from './PaymentModal';
 import { toast } from 'sonner';
 
@@ -13,6 +16,9 @@ interface AppointmentModalProps {
 
 export function AppointmentModal({ isOpen, onClose, date, time }: AppointmentModalProps) {
   const { addAppointment } = useAppointmentStore();
+  const { getSchedulesByDate } = useScheduleStore();
+  const { records: petRecords } = usePetRecordsStore();
+  const { role } = useRoleStore();
   const [formData, setFormData] = useState({
     petName: '',
     ownerName: '',
@@ -25,6 +31,64 @@ export function AppointmentModal({ isOpen, onClose, date, time }: AppointmentMod
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showPayment, setShowPayment] = useState(false);
 
+  const isPetOwner = role === 'owner';
+
+  // Get available vets for the selected date and time
+  const availableVets = (() => {
+    const schedules = getSchedulesByDate(date);
+    const vetsInSchedule = new Set<string>();
+    
+    // Parse time to check if it falls within schedule ranges
+    const parseTime = (timeStr: string): number => {
+      const [hours, minutes] = timeStr.split(':').map(Number);
+      return hours * 60 + minutes;
+    };
+    
+    const requestedTime = parseTime(time);
+    
+    schedules.forEach(schedule => {
+      const startTime = parseTime(schedule.startTime);
+      const endTime = parseTime(schedule.endTime);
+      
+      if (requestedTime >= startTime && requestedTime < endTime) {
+        schedule.veterinarians.forEach(vet => vetsInSchedule.add(vet));
+      }
+    });
+    
+    // If no schedules found, return default vets
+    if (vetsInSchedule.size === 0) {
+      return ['Dr. Smith', 'Dr. Johnson', 'Dr. Williams', 'Dr. Brown'];
+    }
+    
+    return Array.from(vetsInSchedule).sort();
+  })();
+
+  // Reset form when modal opens/closes
+  useEffect(() => {
+    if (isOpen) {
+      // Get first available vet or default
+      const defaultVet = availableVets.length > 0 ? availableVets[0] : 'Dr. Smith';
+      // Reset form when opening
+      setFormData({
+        petName: '',
+        ownerName: '',
+        phone: '',
+        email: '',
+        reason: '',
+        serviceType: 'consultation',
+        vet: defaultVet
+      });
+      setErrors({});
+    }
+  }, [isOpen, availableVets.join(',')]);
+
+  // Update selected vet if current selection is not available
+  useEffect(() => {
+    if (isOpen && availableVets.length > 0 && !availableVets.includes(formData.vet)) {
+      setFormData(prev => ({ ...prev, vet: availableVets[0] }));
+    }
+  }, [isOpen, date, time]);
+
   const serviceTypes = [
     { value: 'consultation', label: 'Consultation', price: 75 },
     { value: 'grooming', label: 'Grooming', price: 50 },
@@ -34,6 +98,14 @@ export function AppointmentModal({ isOpen, onClose, date, time }: AppointmentMod
   ];
 
   const selectedService = serviceTypes.find(service => service.value === formData.serviceType);
+
+  // Helper function to convert 24-hour time to 12-hour AM/PM format
+  const formatTime12Hour = (time24: string): string => {
+    const [hours, minutes] = time24.split(':').map(Number);
+    const period = hours >= 12 ? 'PM' : 'AM';
+    const hours12 = hours % 12 || 12;
+    return `${hours12}:${minutes.toString().padStart(2, '0')} ${period}`;
+  };
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -122,10 +194,15 @@ export function AppointmentModal({ isOpen, onClose, date, time }: AppointmentMod
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
               <div className="bg-blue-50 p-3 rounded-lg">
                 <p className="text-sm text-blue-800">
-                  <strong>Date:</strong> {new Date(date).toLocaleDateString()}
+                  <strong>Date:</strong> {(() => {
+                    // Parse YYYY-MM-DD date string in local timezone
+                    const [year, month, day] = date.split('-').map(Number);
+                    const localDate = new Date(year, month - 1, day);
+                    return localDate.toLocaleDateString();
+                  })()}
                 </p>
                 <p className="text-sm text-blue-800">
-                  <strong>Time:</strong> {time}
+                  <strong>Time:</strong> {formatTime12Hour(time)}
                 </p>
               </div>
 
@@ -133,15 +210,39 @@ export function AppointmentModal({ isOpen, onClose, date, time }: AppointmentMod
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Pet Name *
                 </label>
-                <input
-                  type="text"
-                  value={formData.petName}
-                  onChange={(e: ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, petName: e.target.value })}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                    errors.petName ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                  placeholder="Enter pet's name"
-                />
+                {isPetOwner ? (
+                  <>
+                    <select
+                      value={formData.petName}
+                      onChange={(e: ChangeEvent<HTMLSelectElement>) => setFormData({ ...formData, petName: e.target.value })}
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                        errors.petName ? 'border-red-500' : 'border-gray-300'
+                      }`}
+                    >
+                      <option value="">Select a pet</option>
+                      {petRecords.map((pet) => (
+                        <option key={pet.id} value={pet.petName}>
+                          {pet.petName} {pet.breed ? `(${pet.breed})` : ''}
+                        </option>
+                      ))}
+                    </select>
+                    {petRecords.length === 0 && (
+                      <p className="text-yellow-600 text-xs mt-1">
+                        No pets found. Please add a pet record first.
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <input
+                    type="text"
+                    value={formData.petName}
+                    onChange={(e: ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, petName: e.target.value })}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.petName ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                    placeholder="Enter pet's name"
+                  />
+                )}
                 {errors.petName && <p className="text-red-500 text-sm mt-1">{errors.petName}</p>}
               </div>
 
@@ -232,11 +333,13 @@ export function AppointmentModal({ isOpen, onClose, date, time }: AppointmentMod
                   onChange={(e: ChangeEvent<HTMLSelectElement>) => setFormData({ ...formData, vet: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
-                  <option value="Dr. Smith">Dr. Smith</option>
-                  <option value="Dr. Johnson">Dr. Johnson</option>
-                  <option value="Dr. Williams">Dr. Williams</option>
-                  <option value="Dr. Brown">Dr. Brown</option>
+                  {availableVets.map(vet => (
+                    <option key={vet} value={vet}>{vet}</option>
+                  ))}
                 </select>
+                {availableVets.length === 0 && (
+                  <p className="text-yellow-600 text-xs mt-1">No veterinarians available for this time slot</p>
+                )}
               </div>
 
               <div className="bg-green-50 p-3 rounded-lg">
