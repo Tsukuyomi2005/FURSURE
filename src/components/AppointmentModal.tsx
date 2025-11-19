@@ -233,15 +233,15 @@ export function AppointmentModal({ isOpen, onClose, date, time }: AppointmentMod
                     )}
                   </>
                 ) : (
-                  <input
-                    type="text"
-                    value={formData.petName}
-                    onChange={(e: ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, petName: e.target.value })}
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                      errors.petName ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                    placeholder="Enter pet's name"
-                  />
+                <input
+                  type="text"
+                  value={formData.petName}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, petName: e.target.value })}
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    errors.petName ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder="Enter pet's name"
+                />
                 )}
                 {errors.petName && <p className="text-red-500 text-sm mt-1">{errors.petName}</p>}
               </div>

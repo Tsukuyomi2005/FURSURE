@@ -28,7 +28,7 @@ export function Layout({ children }: LayoutProps) {
 
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: Home, current: location.pathname === '/dashboard' },
-    { name: 'Appointments', href: '/appointments', icon: Calendar, current: location.pathname === '/appointments' },
+    { name: hasFullAccess ? 'Appointments' : 'Book Appointment', href: '/appointments', icon: Calendar, current: location.pathname === '/appointments' },
     ...(hasFullAccess ? [
       { name: 'Schedule Management', href: '/schedule-management', icon: Clock, current: location.pathname === '/schedule-management' },
       { name: 'Inventory & Analytics', href: '/inventory', icon: Package, current: location.pathname === '/inventory' },
