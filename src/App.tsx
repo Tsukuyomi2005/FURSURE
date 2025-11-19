@@ -8,6 +8,7 @@ import { Appointments } from './pages/Appointments';
 import { PetRecords } from './pages/PetRecords';
 import { LandingPage } from './pages/LandingPage';
 import { ScheduleManagement } from './pages/ScheduleManagement';
+import { MyAppointments } from './pages/MyAppointments';
 import { useRoleStore } from './stores/roleStore';
 import { useEffect } from 'react';
 
@@ -52,7 +53,10 @@ export default function App() {
                 <Route path="/inventory" element={<Inventory />} />
               </>
             ) : (
-              <Route path="/pet-records" element={<PetRecords />} />
+              <>
+                <Route path="/my-appointments" element={<MyAppointments />} />
+                <Route path="/pet-records" element={<PetRecords />} />
+              </>
             )}
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>

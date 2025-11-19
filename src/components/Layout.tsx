@@ -9,7 +9,8 @@ import {
   Heart,
   LogOut,
   FileText,
-  Clock
+  Clock,
+  CalendarCheck
 } from 'lucide-react';
 import { useRoleStore } from '../stores/roleStore';
 import { cn } from '../lib/utils';
@@ -33,6 +34,7 @@ export function Layout({ children }: LayoutProps) {
       { name: 'Schedule Management', href: '/schedule-management', icon: Clock, current: location.pathname === '/schedule-management' },
       { name: 'Inventory & Analytics', href: '/inventory', icon: Package, current: location.pathname === '/inventory' },
     ] : [
+      { name: 'My Appointments', href: '/my-appointments', icon: CalendarCheck, current: location.pathname === '/my-appointments' },
       { name: 'Pet Records', href: '/pet-records', icon: FileText, current: location.pathname === '/pet-records' },
     ]),
   ];
