@@ -122,14 +122,14 @@ export function Appointments() {
       }
       setCurrentStep(2);
     } else if (currentStep === 2) {
-      if (!selectedVet) {
-        toast.error('Please select a veterinarian');
+      if (!selectedDate || !selectedTime) {
+        toast.error('Please select a date and time');
         return;
       }
       setCurrentStep(3);
     } else if (currentStep === 3) {
-      if (!selectedDate || !selectedTime) {
-        toast.error('Please select a date and time');
+      if (!selectedVet) {
+        toast.error('Please select a veterinarian');
         return;
       }
       setCurrentStep(4);
@@ -209,7 +209,7 @@ export function Appointments() {
         paymentStatus: 'down_payment_paid',
         paymentData: {
           ...paymentData,
-          method: 'online'
+          // Keep the original method ('gcash' or 'paymaya') from PaymentModal
         }
       });
 
@@ -291,8 +291,8 @@ export function Appointments() {
 
   const steps = [
     { number: 1, label: 'Select Service' },
-    { number: 2, label: 'Choose Veterinarian' },
-    { number: 3, label: 'Select Date and Time' },
+    { number: 2, label: 'Select Date and Time' },
+    { number: 3, label: 'Choose Veterinarian' },
     { number: 4, label: 'Payment Method' },
   ];
 
@@ -378,47 +378,8 @@ export function Appointments() {
         </div>
       )}
 
-      {/* Step 2: Choose Veterinarian */}
+      {/* Step 2: Select Date and Time */}
       {currentStep === 2 && (
-        <div className="bg-white rounded-lg p-6 shadow-sm border">
-          <h2 className="text-2xl font-semibold text-gray-900 mb-6">Choose Veterinarian</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {availableVets.map((vet) => (
-              <button
-                key={vet}
-                onClick={() => setSelectedVet(vet)}
-                className={`p-4 rounded-lg border-2 text-left transition-all duration-200 ${
-                  selectedVet === vet
-                    ? 'border-purple-500 bg-purple-50 shadow-lg shadow-purple-200'
-                    : 'border-gray-200 hover:border-purple-300 hover:bg-purple-50'
-                }`}
-              >
-                <h3 className="font-semibold text-gray-900">{vet}</h3>
-              </button>
-            ))}
-          </div>
-          <div className="mt-6 flex justify-between">
-            <button
-              onClick={handleBack}
-              className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2"
-            >
-              <ChevronLeft className="h-5 w-5" />
-              Back
-            </button>
-            <button
-              onClick={handleNext}
-              disabled={!selectedVet}
-              className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-            >
-              Next
-              <ChevronRight className="h-5 w-5" />
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Step 3: Select Date and Time */}
-      {currentStep === 3 && (
         <div className="bg-white rounded-lg p-6 shadow-sm border">
           <h2 className="text-2xl font-semibold text-gray-900 mb-6">Select Date and Time</h2>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -476,6 +437,69 @@ export function Appointments() {
             <button
               onClick={handleNext}
               disabled={!selectedDate || !selectedTime}
+              className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              Next
+              <ChevronRight className="h-5 w-5" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Step 3: Choose Veterinarian */}
+      {currentStep === 3 && (
+        <div className="bg-white rounded-lg p-6 shadow-sm border">
+          <h2 className="text-2xl font-semibold text-gray-900 mb-6">Choose Veterinarian</h2>
+          {selectedDate && selectedTime ? (
+            <>
+              <div className="mb-4 p-3 bg-purple-50 rounded-lg">
+                <p className="text-sm text-purple-800">
+                  <strong>Selected:</strong> {selectedDate.toLocaleDateString()} at {formatTime12Hour(selectedTime)}
+                </p>
+                <p className="text-xs text-purple-600 mt-1">
+                  Available veterinarians for this date and time:
+                </p>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {availableVets.length > 0 ? (
+                  availableVets.map((vet) => (
+                    <button
+                      key={vet}
+                      onClick={() => setSelectedVet(vet)}
+                      className={`p-4 rounded-lg border-2 text-left transition-all duration-200 ${
+                        selectedVet === vet
+                          ? 'border-purple-500 bg-purple-50 shadow-lg shadow-purple-200'
+                          : 'border-gray-200 hover:border-purple-300 hover:bg-purple-50'
+                      }`}
+                    >
+                      <h3 className="font-semibold text-gray-900">{vet}</h3>
+                    </button>
+                  ))
+                ) : (
+                  <div className="col-span-2 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <p className="text-yellow-800">
+                      No veterinarians available for the selected date and time. Please choose a different date or time.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </>
+          ) : (
+            <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
+              <p className="text-gray-600">Please select a date and time first to see available veterinarians.</p>
+            </div>
+          )}
+          <div className="mt-6 flex justify-between">
+            <button
+              onClick={handleBack}
+              className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2"
+            >
+              <ChevronLeft className="h-5 w-5" />
+              Back
+            </button>
+            <button
+              onClick={handleNext}
+              disabled={!selectedVet || !selectedDate || !selectedTime}
               className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
               Next
