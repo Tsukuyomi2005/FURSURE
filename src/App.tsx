@@ -10,6 +10,8 @@ import { LandingPage } from './pages/LandingPage';
 import { ScheduleManagement } from './pages/ScheduleManagement';
 import { MyAppointments } from './pages/MyAppointments';
 import { PaymentTimeline } from './pages/PaymentTimeline';
+import { Services } from './pages/Services';
+import { StaffManagement } from './pages/StaffManagement';
 import { useRoleStore } from './stores/roleStore';
 import { useEffect } from 'react';
 
@@ -51,6 +53,8 @@ export default function App() {
             {hasFullAccess ? (
               <>
                 <Route path="/schedule-management" element={<ScheduleManagement />} />
+                <Route path="/services" element={<Services />} />
+                <Route path="/staff-management" element={<StaffManagement />} />
                 <Route path="/inventory" element={<Inventory />} />
               </>
             ) : (

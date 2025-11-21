@@ -49,3 +49,19 @@ export interface Schedule {
   veterinarians: string[];
   notes?: string;
 }
+
+export interface Service {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+}
+
+export interface Staff {
+  id: string;
+  name: string;
+  position: 'Veterinarian' | 'Vet Staff';
+  email: string;
+  phone: string;
+  status: 'active' | 'inactive';
+}

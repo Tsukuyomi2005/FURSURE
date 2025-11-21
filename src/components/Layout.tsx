@@ -11,7 +11,9 @@ import {
   FileText,
   Clock,
   CalendarCheck,
-  Receipt
+  Receipt,
+  Stethoscope,
+  Users
 } from 'lucide-react';
 import { useRoleStore } from '../stores/roleStore';
 import { cn } from '../lib/utils';
@@ -33,6 +35,8 @@ export function Layout({ children }: LayoutProps) {
     { name: hasFullAccess ? 'Appointments' : 'Book Appointment', href: '/appointments', icon: Calendar, current: location.pathname === '/appointments' },
     ...(hasFullAccess ? [
       { name: 'Schedule Management', href: '/schedule-management', icon: Clock, current: location.pathname === '/schedule-management' },
+      { name: 'Services', href: '/services', icon: Stethoscope, current: location.pathname === '/services' },
+      { name: 'Veterinarians/Staff', href: '/staff-management', icon: Users, current: location.pathname === '/staff-management' },
       { name: 'Inventory & Analytics', href: '/inventory', icon: Package, current: location.pathname === '/inventory' },
     ] : [
       { name: 'My Appointments', href: '/my-appointments', icon: CalendarCheck, current: location.pathname === '/my-appointments' },

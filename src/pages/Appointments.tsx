@@ -5,37 +5,29 @@ import { useAppointmentStore } from '../stores/appointmentStore';
 import { useScheduleStore } from '../stores/scheduleStore';
 import { useRoleStore } from '../stores/roleStore';
 import { usePetRecordsStore } from '../stores/petRecordsStore';
+import { useServiceStore } from '../stores/serviceStore';
+import { useStaffStore } from '../stores/staffStore';
 import { PaymentModal } from '../components/PaymentModal';
 import { AppointmentActions } from '../components/AppointmentActions';
 import { toast } from 'sonner';
-import type { Appointment } from '../types';
+import type { Appointment, Service } from '../types';
 import 'react-calendar/dist/Calendar.css';
 
 type BookingStep = 1 | 2 | 3 | 4;
-
-interface Service {
-  id: string;
-  name: string;
-  description: string;
-  price: number;
-}
-
-const services: Service[] = [
-  { id: 'vaccination-deworming', name: 'Vaccination & Deworming', description: 'Complete vaccination and deworming services', price: 500 },
-  { id: 'surgery', name: 'Surgery', description: 'Surgical procedures and operations', price: 5000 },
-  { id: 'consultation-treatment', name: 'Consultation Treatment & Confinement', description: 'Medical consultation and treatment with confinement', price: 2000 },
-  { id: 'boarding', name: 'Boarding', description: 'Pet boarding and accommodation services', price: 800 },
-  { id: 'laboratory', name: 'Laboratory', description: 'Laboratory tests and diagnostics', price: 1500 },
-  { id: 'grooming', name: 'Grooming', description: 'Professional pet grooming services', price: 600 },
-  { id: 'pet-accessories', name: 'Pet Accessories', description: 'Pet accessories and supplies', price: 300 },
-  { id: 'pet-foods', name: 'Pet Foods', description: 'Premium pet food and nutrition', price: 400 },
-];
 
 export function Appointments() {
   const { appointments, addAppointment, updateAppointment } = useAppointmentStore();
   const { isTimeSlotAvailable, getSchedulesByDate } = useScheduleStore();
   const { role } = useRoleStore();
   const { records: petRecords } = usePetRecordsStore();
+  const { services } = useServiceStore();
+  const { staff } = useStaffStore();
+  
+  // Get active veterinarians from staff
+  const allActiveVets = staff
+    .filter(member => member.position === 'Veterinarian' && member.status === 'active')
+    .map(member => member.name)
+    .sort();
   
   const [currentStep, setCurrentStep] = useState<BookingStep>(1);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
@@ -82,7 +74,7 @@ export function Appointments() {
   // Get available vets for selected date and time
   const getAvailableVets = (): string[] => {
     if (!selectedDate || !selectedTime) {
-      return ['Dr. Smith', 'Dr. Johnson', 'Dr. Williams', 'Dr. Brown'];
+      return allActiveVets;
     }
 
     const dateStr = formatDateLocal(selectedDate);
@@ -105,8 +97,9 @@ export function Appointments() {
       }
     });
     
+    // If no vets found in schedules, return all active veterinarians
     if (vetsInSchedule.size === 0) {
-      return ['Dr. Smith', 'Dr. Johnson', 'Dr. Williams', 'Dr. Brown'];
+      return allActiveVets;
     }
     
     return Array.from(vetsInSchedule).sort();
@@ -348,23 +341,29 @@ export function Appointments() {
       {currentStep === 1 && (
         <div className="bg-white rounded-lg p-6 shadow-sm border">
           <h2 className="text-2xl font-semibold text-gray-900 mb-6">Select Your Service</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {services.map((service) => (
-              <button
-                key={service.id}
-                onClick={() => handleServiceSelect(service)}
-                className={`p-4 rounded-lg border-2 text-left transition-all duration-200 ${
-                  selectedService?.id === service.id
-                    ? 'border-purple-500 bg-purple-50 shadow-lg shadow-purple-200'
-                    : 'border-gray-200 hover:border-purple-300 hover:bg-purple-50'
-                }`}
-              >
-                <h3 className="font-semibold text-gray-900 mb-1">{service.name}</h3>
-                <p className="text-sm text-gray-600 mb-3">{service.description}</p>
-                <p className="text-lg font-bold text-purple-600">₱{service.price.toLocaleString()}</p>
-              </button>
-            ))}
-          </div>
+          {services.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-gray-600">No services available. Please contact the clinic.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {services.map((service) => (
+                <button
+                  key={service.id}
+                  onClick={() => handleServiceSelect(service)}
+                  className={`p-4 rounded-lg border-2 text-left transition-all duration-200 ${
+                    selectedService?.id === service.id
+                      ? 'border-purple-500 bg-purple-50 shadow-lg shadow-purple-200'
+                      : 'border-gray-200 hover:border-purple-300 hover:bg-purple-50'
+                  }`}
+                >
+                  <h3 className="font-semibold text-gray-900 mb-1">{service.name}</h3>
+                  <p className="text-sm text-gray-600 mb-3">{service.description}</p>
+                  <p className="text-lg font-bold text-purple-600">₱{service.price.toLocaleString()}</p>
+                </button>
+              ))}
+            </div>
+          )}
           <div className="mt-6 flex justify-end">
             <button
               onClick={handleNext}

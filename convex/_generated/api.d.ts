@@ -14,6 +14,8 @@ import type * as http from "../http.js";
 import type * as inventory from "../inventory.js";
 import type * as router from "../router.js";
 import type * as schedules from "../schedules.js";
+import type * as services from "../services.js";
+import type * as staff from "../staff.js";
 
 import type {
   ApiFromModules,
@@ -36,6 +38,8 @@ declare const fullApi: ApiFromModules<{
   inventory: typeof inventory;
   router: typeof router;
   schedules: typeof schedules;
+  services: typeof services;
+  staff: typeof staff;
 }>;
 declare const fullApiWithMounts: typeof fullApi;
 

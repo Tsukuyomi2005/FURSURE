@@ -4,6 +4,7 @@ import { useAppointmentStore } from '../stores/appointmentStore';
 import { useScheduleStore } from '../stores/scheduleStore';
 import { usePetRecordsStore } from '../stores/petRecordsStore';
 import { useRoleStore } from '../stores/roleStore';
+import { useStaffStore } from '../stores/staffStore';
 import { PaymentModal } from './PaymentModal';
 import { toast } from 'sonner';
 
@@ -19,6 +20,14 @@ export function AppointmentModal({ isOpen, onClose, date, time }: AppointmentMod
   const { getSchedulesByDate } = useScheduleStore();
   const { records: petRecords } = usePetRecordsStore();
   const { role } = useRoleStore();
+  const { staff } = useStaffStore();
+  
+  // Get active veterinarians from staff
+  const allActiveVets = staff
+    .filter(member => member.position === 'Veterinarian' && member.status === 'active')
+    .map(member => member.name)
+    .sort();
+  
   const [formData, setFormData] = useState({
     petName: '',
     ownerName: '',
@@ -26,7 +35,7 @@ export function AppointmentModal({ isOpen, onClose, date, time }: AppointmentMod
     email: '',
     reason: '',
     serviceType: 'consultation',
-    vet: 'Dr. Smith'
+    vet: ''
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showPayment, setShowPayment] = useState(false);
@@ -55,9 +64,9 @@ export function AppointmentModal({ isOpen, onClose, date, time }: AppointmentMod
       }
     });
     
-    // If no schedules found, return default vets
+    // If no schedules found, return all active veterinarians
     if (vetsInSchedule.size === 0) {
-      return ['Dr. Smith', 'Dr. Johnson', 'Dr. Williams', 'Dr. Brown'];
+      return allActiveVets;
     }
     
     return Array.from(vetsInSchedule).sort();
@@ -66,8 +75,8 @@ export function AppointmentModal({ isOpen, onClose, date, time }: AppointmentMod
   // Reset form when modal opens/closes
   useEffect(() => {
     if (isOpen) {
-      // Get first available vet or default
-      const defaultVet = availableVets.length > 0 ? availableVets[0] : 'Dr. Smith';
+      // Get first available vet or first active vet
+      const defaultVet = availableVets.length > 0 ? availableVets[0] : (allActiveVets.length > 0 ? allActiveVets[0] : '');
       // Reset form when opening
       setFormData({
         petName: '',
@@ -160,7 +169,7 @@ export function AppointmentModal({ isOpen, onClose, date, time }: AppointmentMod
         email: '',
         reason: '',
         serviceType: 'consultation',
-        vet: 'Dr. Smith'
+        vet: allActiveVets.length > 0 ? allActiveVets[0] : ''
       });
       setErrors({});
       setShowPayment(false);

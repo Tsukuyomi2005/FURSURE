@@ -1,6 +1,7 @@
 import { useState, useEffect, type ChangeEvent, type FormEvent } from 'react';
 import { X, Calendar, Clock, User, FileText } from 'lucide-react';
 import { toast } from 'sonner';
+import { useStaffStore } from '../stores/staffStore';
 
 interface CreateScheduleModalProps {
   isOpen: boolean;
@@ -21,15 +22,15 @@ interface CreateScheduleModalProps {
   } | null;
 }
 
-const availableVets = [
-  'Dr. Smith',
-  'Dr. Williams',
-  'Dr. Brown',
-  'Dr. Johnson',
-  'Dr. Davis'
-];
-
 export function CreateScheduleModal({ isOpen, onClose, onSubmit, schedule }: CreateScheduleModalProps) {
+  const { staff } = useStaffStore();
+  
+  // Get active veterinarians from staff
+  const availableVets = staff
+    .filter(member => member.position === 'Veterinarian' && member.status === 'active')
+    .map(member => member.name)
+    .sort();
+
   const [formData, setFormData] = useState({
     date: schedule?.date || '',
     startTime: schedule?.startTime || '',
@@ -224,28 +225,38 @@ export function CreateScheduleModal({ isOpen, onClose, onSubmit, schedule }: Cre
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Veterinarian/s *
               </label>
-              <div className="border border-gray-300 rounded-lg p-3 max-h-48 overflow-y-auto">
-                {availableVets.map((vet) => (
-                  <label
-                    key={vet}
-                    className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded cursor-pointer"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={formData.veterinarians.includes(vet)}
-                      onChange={() => handleVetToggle(vet)}
-                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                    />
-                    <User className="h-4 w-4 text-gray-500" />
-                    <span className="text-sm text-gray-700">{vet}</span>
-                  </label>
-                ))}
-              </div>
-              {errors.veterinarians && <p className="text-red-500 text-sm mt-1">{errors.veterinarians}</p>}
-              {formData.veterinarians.length > 0 && (
-                <p className="text-xs text-gray-500 mt-1">
-                  {formData.veterinarians.length} veterinarian(s) selected
-                </p>
+              {availableVets.length === 0 ? (
+                <div className="border border-gray-300 rounded-lg p-4 text-center">
+                  <p className="text-sm text-gray-500">
+                    No active veterinarians found. Please add veterinarians in the Staff Management page.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <div className="border border-gray-300 rounded-lg p-3 max-h-48 overflow-y-auto">
+                    {availableVets.map((vet) => (
+                      <label
+                        key={vet}
+                        className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={formData.veterinarians.includes(vet)}
+                          onChange={() => handleVetToggle(vet)}
+                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <User className="h-4 w-4 text-gray-500" />
+                        <span className="text-sm text-gray-700">{vet}</span>
+                      </label>
+                    ))}
+                  </div>
+                  {errors.veterinarians && <p className="text-red-500 text-sm mt-1">{errors.veterinarians}</p>}
+                  {formData.veterinarians.length > 0 && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      {formData.veterinarians.length} veterinarian(s) selected
+                    </p>
+                  )}
+                </>
               )}
             </div>
 

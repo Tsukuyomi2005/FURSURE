@@ -47,6 +47,18 @@ const applicationTables = {
     veterinarians: v.array(v.string()),
     notes: v.optional(v.string()),
   }).index("by_date", ["date"]),
+  services: defineTable({
+    name: v.string(),
+    description: v.string(),
+    price: v.number(),
+  }),
+  staff: defineTable({
+    name: v.string(),
+    position: v.union(v.literal("Veterinarian"), v.literal("Vet Staff")),
+    email: v.string(),
+    phone: v.string(),
+    status: v.union(v.literal("active"), v.literal("inactive")),
+  }),
 };
 
 export default defineSchema({
