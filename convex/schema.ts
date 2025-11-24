@@ -59,6 +59,14 @@ const applicationTables = {
     phone: v.string(),
     status: v.union(v.literal("active"), v.literal("inactive")),
   }),
+  availability: defineTable({
+    veterinarianName: v.string(),
+    workingDays: v.array(v.string()),
+    startTime: v.string(),
+    endTime: v.string(),
+    appointmentDuration: v.number(),
+    breakTime: v.number(),
+  }).index("by_veterinarian", ["veterinarianName"]),
 };
 
 export default defineSchema({

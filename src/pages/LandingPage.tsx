@@ -9,7 +9,6 @@ import {
   ChevronDown,
   Menu,
   X,
-  Video,
   Clock,
   CheckCircle,
   Shield,
@@ -46,6 +45,12 @@ export function LandingPage() {
 
   const handleClinicStaffAccess = () => {
     setRole('vet');
+    setIsDropdownOpen(false);
+    navigate('/dashboard');
+  };
+
+  const handleVeterinarianAccess = () => {
+    setRole('veterinarian');
     setIsDropdownOpen(false);
     navigate('/dashboard');
   };
@@ -120,8 +125,20 @@ export function LandingPage() {
                       <Stethoscope className="h-5 w-5 text-blue-600" />
                     </div>
                     <div>
-                      <div className="font-semibold text-gray-900">Clinic Staff</div>
+                      <div className="font-semibold text-gray-900">Admin</div>
                       <div className="text-sm text-gray-500">Manage clinic operations</div>
+                    </div>
+                  </button>
+                  <button
+                    onClick={handleVeterinarianAccess}
+                    className="w-full px-4 py-3 text-left hover:bg-green-50 transition-colors flex items-center gap-3 group border-t border-gray-100"
+                  >
+                    <div className="p-2 bg-green-100 rounded-lg group-hover:bg-green-200 transition-colors">
+                      <Stethoscope className="h-5 w-5 text-green-600" />
+                    </div>
+                    <div>
+                      <div className="font-semibold text-gray-900">Veterinarian</div>
+                      <div className="text-sm text-gray-500">Manage your schedule & appointments</div>
                     </div>
                   </button>
                 </div>
@@ -218,17 +235,17 @@ export function LandingPage() {
                 <div className="relative bg-white rounded-2xl p-6 shadow-lg">
                   <div className="aspect-video bg-gradient-to-br from-slate-100 to-slate-200 rounded-lg flex items-center justify-center mb-4">
                     <div className="text-center">
-                      <Video className="h-16 w-16 text-purple-600 mx-auto mb-2" />
-                      <div className="text-sm text-gray-600 font-medium">Virtual Consultation</div>
+                      <Calendar className="h-16 w-16 text-purple-600 mx-auto mb-2" />
+                      <div className="text-sm text-gray-600 font-medium">Online Appointment Booking</div>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-gradient-to-br from-purple-600 to-indigo-600 rounded-full flex items-center justify-center">
-                      <Stethoscope className="h-5 w-5 text-white" />
+                      <Clock className="h-5 w-5 text-white" />
                     </div>
                     <div>
-                      <div className="font-semibold text-gray-900">Dr. Smith</div>
-                      <div className="text-sm text-gray-500">Veterinary Specialist</div>
+                      <div className="font-semibold text-gray-900">Book Instantly</div>
+                      <div className="text-sm text-gray-500">Available 24/7</div>
                     </div>
                   </div>
                 </div>

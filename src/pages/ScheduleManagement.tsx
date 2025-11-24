@@ -1,97 +1,128 @@
-import { useState, type ChangeEvent } from 'react';
-import { Plus, Calendar, Clock, User, Edit, Trash2, Filter } from 'lucide-react';
-import { useScheduleStore } from '../stores/scheduleStore';
-import { CreateScheduleModal } from '../components/CreateScheduleModal';
-import { ConfirmDialog } from '../components/ConfirmDialog';
-import { toast } from 'sonner';
-import type { Schedule } from '../types';
+import { useState } from 'react';
+import { Filter, ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
+import { useAvailabilityStore } from '../stores/availabilityStore';
+import { useStaffStore } from '../stores/staffStore';
+import { useAppointmentStore } from '../stores/appointmentStore';
 
 export function ScheduleManagement() {
-  const { schedules, addSchedule, updateSchedule, removeSchedule } = useScheduleStore();
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [editingSchedule, setEditingSchedule] = useState<Schedule | null>(null);
-  const [deletingSchedule, setDeletingSchedule] = useState<Schedule | null>(null);
-  const [filterDate, setFilterDate] = useState('');
-  const [filterVet, setFilterVet] = useState('all');
+  const { allAvailability } = useAvailabilityStore();
+  const { staff } = useStaffStore();
+  const { appointments } = useAppointmentStore();
+  const [filterStaff, setFilterStaff] = useState<string>('all');
+  const [filterPosition, setFilterPosition] = useState<string>('all');
+  const [filterDateRange, setFilterDateRange] = useState<string>('this-week');
+  const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [currentWeekStart, setCurrentWeekStart] = useState(() => {
+    const today = new Date();
+    const day = today.getDay();
+    const diff = today.getDate() - day + (day === 0 ? -6 : 1);
+    const monday = new Date(today.setDate(diff));
+    return monday;
+  });
+  const [showFilters, setShowFilters] = useState(false);
 
-  // Get unique list of veterinarians from all schedules
-  const allVets = Array.from(
-    new Set(schedules.flatMap(s => s.veterinarians))
-  ).sort();
+  // Get veterinarians from staff
+  const veterinarians = staff.filter(s => s.position === 'Veterinarian' && s.status === 'active');
 
-  // Filter schedules
-  let filteredSchedules = schedules;
-  if (filterDate) {
-    filteredSchedules = filteredSchedules.filter(s => s.date === filterDate);
-  }
-  if (filterVet !== 'all') {
-    filteredSchedules = filteredSchedules.filter(s => 
-      s.veterinarians.includes(filterVet)
-    );
-  }
+  // Get week dates
+  const getWeekDates = () => {
+    const dates = [];
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(currentWeekStart);
+      date.setDate(date.getDate() + i);
+      dates.push(date);
+    }
+    return dates;
+  };
 
-  // Sort by date and start time
-  filteredSchedules = [...filteredSchedules].sort((a, b) => {
-    const dateCompare = a.date.localeCompare(b.date);
-    if (dateCompare !== 0) return dateCompare;
-    return a.startTime.localeCompare(b.startTime);
+  const weekDates = getWeekDates();
+
+  // Format date for comparison
+  const formatDateForComparison = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  // Get day name from date
+  const getDayName = (date: Date): string => {
+    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    return days[date.getDay()];
+  };
+
+  // Get appointments for a vet on a specific date
+  const getAppointmentsForVetOnDate = (vetName: string, date: Date) => {
+    const dateStr = formatDateForComparison(date);
+    return appointments.filter(apt => apt.vet === vetName && apt.date === dateStr);
+  };
+
+  // Generate time slots based on availability
+  const generateTimeSlots = (availability: typeof allAvailability[0] | undefined) => {
+    if (!availability) return [];
+    
+    const slots = [];
+    const [startHour, startMin] = availability.startTime.split(':').map(Number);
+    const [endHour, endMin] = availability.endTime.split(':').map(Number);
+    const duration = availability.appointmentDuration;
+    
+    let currentHour = startHour;
+    let currentMin = startMin;
+    
+    while (currentHour < endHour || (currentHour === endHour && currentMin < endMin)) {
+      const timeStr = `${String(currentHour).padStart(2, '0')}:${String(currentMin).padStart(2, '0')}`;
+      slots.push(timeStr);
+      
+      currentMin += duration;
+      if (currentMin >= 60) {
+        currentHour += Math.floor(currentMin / 60);
+        currentMin = currentMin % 60;
+      }
+    }
+    
+    return slots;
+  };
+
+  // Filter veterinarians
+  const filteredVets = veterinarians.filter(vet => {
+    if (filterStaff !== 'all' && vet.name !== filterStaff) return false;
+    if (filterPosition !== 'all' && vet.position !== filterPosition) return false;
+    return true;
   });
 
-  const handleCreate = async (scheduleData: Omit<Schedule, 'id'>) => {
-    await addSchedule(scheduleData);
+  // Navigate weeks
+  const goToPreviousWeek = () => {
+    const newDate = new Date(currentWeekStart);
+    newDate.setDate(newDate.getDate() - 7);
+    setCurrentWeekStart(newDate);
   };
 
-  const handleEdit = (schedule: Schedule) => {
-    setEditingSchedule(schedule);
-    setIsCreateModalOpen(true);
+  const goToNextWeek = () => {
+    const newDate = new Date(currentWeekStart);
+    newDate.setDate(newDate.getDate() + 7);
+    setCurrentWeekStart(newDate);
   };
 
-  const handleDelete = async () => {
-    if (deletingSchedule) {
-      await removeSchedule(deletingSchedule.id);
-      toast.success('Schedule deleted successfully');
-      setDeletingSchedule(null);
-    }
+  // Get week range
+  const getWeekRange = () => {
+    const start = weekDates[0];
+    const end = weekDates[6];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return `${months[start.getMonth()]} ${start.getDate()} - ${months[end.getMonth()]} ${end.getDate()}, ${start.getFullYear()}`;
   };
 
-  const handleUpdate = async (scheduleData: Omit<Schedule, 'id'>) => {
-    if (editingSchedule) {
-      await updateSchedule(editingSchedule.id, scheduleData);
-      toast.success('Schedule updated successfully');
-      setEditingSchedule(null);
-      setIsCreateModalOpen(false);
-    }
+  const formatTime12Hour = (time24: string): string => {
+    const [hours, minutes] = time24.split(':').map(Number);
+    const period = hours >= 12 ? 'PM' : 'AM';
+    const hours12 = hours % 12 || 12;
+    return `${hours12}:${minutes.toString().padStart(2, '0')} ${period}`;
   };
 
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('en-US', { 
-      month: '2-digit', 
-      day: '2-digit', 
-      year: 'numeric' 
-    });
-  };
-
-  const getStatusColor = (schedule: Schedule) => {
-    const today = new Date().toISOString().split('T')[0];
-    if (schedule.date < today) {
-      return 'bg-gray-100 text-gray-800';
-    }
-    if (schedule.date === today) {
-      return 'bg-yellow-100 text-yellow-800';
-    }
-    return 'bg-green-100 text-green-800';
-  };
-
-  const getStatusText = (schedule: Schedule) => {
-    const today = new Date().toISOString().split('T')[0];
-    if (schedule.date < today) {
-      return 'Past';
-    }
-    if (schedule.date === today) {
-      return 'Today';
-    }
-    return 'Upcoming';
+  const handleResetFilters = () => {
+    setFilterStaff('all');
+    setFilterPosition('all');
+    setFilterDateRange('this-week');
+    setFilterStatus('all');
   };
 
   return (
@@ -99,189 +130,200 @@ export function ScheduleManagement() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Schedule Management</h1>
-          <p className="text-gray-600 mt-1">
-            Create and manage appointment time slots for different services.
-          </p>
+          <h1 className="text-3xl font-bold text-gray-900">Staff Schedules</h1>
+          <p className="text-gray-600 mt-2">Manage and view staff schedules</p>
         </div>
         <button
-          onClick={() => {
-            setEditingSchedule(null);
-            setIsCreateModalOpen(true);
-          }}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow-sm"
+          onClick={() => setShowFilters(!showFilters)}
+          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
         >
-          <Plus className="h-5 w-5" />
-          Create Schedule
+          <Filter className="h-4 w-4" />
+          Filter
         </button>
       </div>
 
-      {/* Filters */}
-      <div className="bg-white rounded-lg p-4 shadow-sm border">
-        <div className="flex flex-wrap gap-4 items-end">
-          <div className="flex-1 min-w-[200px]">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Filter by Date
-            </label>
-            <div className="relative">
-              <input
-                type="date"
-                value={filterDate}
-                onChange={(e: ChangeEvent<HTMLInputElement>) => setFilterDate(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-              <Calendar className="absolute right-3 top-2.5 h-5 w-5 text-gray-400 pointer-events-none" />
-            </div>
-          </div>
-          <div className="flex-1 min-w-[200px]">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Filter by Veterinarian
-            </label>
-            <div className="relative">
+      {/* Filter Panel */}
+      {showFilters && (
+        <div className="bg-white rounded-lg shadow-sm border p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Filter Schedules</h2>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Staff Member</label>
               <select
-                value={filterVet}
-                onChange={(e: ChangeEvent<HTMLSelectElement>) => setFilterVet(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none"
+                value={filterStaff}
+                onChange={(e) => setFilterStaff(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
-                <option value="all">All Veterinarians</option>
-                {allVets.map(vet => (
-                  <option key={vet} value={vet}>{vet}</option>
+                <option value="all">All Staff</option>
+                {veterinarians.map(vet => (
+                  <option key={vet.id} value={vet.name}>{vet.name}</option>
                 ))}
               </select>
-              <Filter className="absolute right-3 top-2.5 h-5 w-5 text-gray-400 pointer-events-none" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Position</label>
+              <select
+                value={filterPosition}
+                onChange={(e) => setFilterPosition(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="all">All Positions</option>
+                <option value="Veterinarian">Veterinarian</option>
+                <option value="Vet Staff">Vet Staff</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Date Range</label>
+              <select
+                value={filterDateRange}
+                onChange={(e) => setFilterDateRange(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="this-week">This Week</option>
+                <option value="next-week">Next Week</option>
+                <option value="this-month">This Month</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="all">All Statuses</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+              </select>
             </div>
           </div>
-          {(filterDate || filterVet !== 'all') && (
+          <div className="flex justify-end gap-2 mt-4">
             <button
-              onClick={() => {
-                setFilterDate('');
-                setFilterVet('all');
-              }}
-              className="px-4 py-2 text-gray-700 hover:text-gray-900 font-medium"
+              onClick={handleResetFilters}
+              className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
             >
-              Clear Filters
+              Reset
             </button>
-          )}
-        </div>
-      </div>
-
-      {/* Schedule Cards */}
-      {filteredSchedules.length === 0 ? (
-        <div className="bg-white rounded-lg p-12 text-center shadow-sm border">
-          <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-          <p className="text-gray-500 text-lg mb-2">
-            {schedules.length === 0 
-              ? 'No schedules created yet' 
-              : 'No schedules match your filters'}
-          </p>
-          <p className="text-gray-400 text-sm">
-            {schedules.length === 0 
-              ? 'Click "Create Schedule" to add a new schedule' 
-              : 'Try adjusting your filters'}
-          </p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredSchedules.map((schedule) => (
-            <div
-              key={schedule.id}
-              className="bg-white rounded-lg p-6 shadow-sm border hover:shadow-md transition-shadow"
+            <button
+              onClick={() => setShowFilters(false)}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
             >
-              {/* Date and Time */}
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Calendar className="h-4 w-4 text-blue-600" />
-                    <span className="text-sm font-medium text-gray-900">
-                      {formatDate(schedule.date)}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Clock className="h-4 w-4 text-gray-500" />
-                    <span className="text-sm text-gray-700">
-                      {schedule.startTime} - {schedule.endTime}
-                    </span>
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => handleEdit(schedule)}
-                    className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                    title="Edit schedule"
-                  >
-                    <Edit className="h-4 w-4" />
-                  </button>
-                  <button
-                    onClick={() => setDeletingSchedule(schedule)}
-                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-                    title="Delete schedule"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Status */}
-              <div className="mb-4">
-                <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(schedule)}`}>
-                  {getStatusText(schedule)}
-                </span>
-              </div>
-
-              {/* Veterinarians */}
-              <div className="mb-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <User className="h-4 w-4 text-gray-500" />
-                  <span className="text-xs font-medium text-gray-700">Veterinarians:</span>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {schedule.veterinarians.map((vet) => (
-                    <span
-                      key={vet}
-                      className="px-2 py-1 text-xs bg-blue-50 text-blue-700 rounded-full"
-                    >
-                      {vet}
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              {/* Notes */}
-              {schedule.notes && (
-                <div className="pt-4 border-t">
-                  <p className="text-xs text-gray-600">
-                    <strong>Notes:</strong> {schedule.notes}
-                  </p>
-                </div>
-              )}
-            </div>
-          ))}
+              Apply Filters
+            </button>
+          </div>
         </div>
       )}
 
-      {/* Create/Edit Modal */}
-      <CreateScheduleModal
-        isOpen={isCreateModalOpen}
-        onClose={() => {
-          setIsCreateModalOpen(false);
-          setEditingSchedule(null);
-        }}
-        onSubmit={editingSchedule ? handleUpdate : handleCreate}
-        schedule={editingSchedule}
-      />
-
-      {/* Delete Confirmation */}
-      <ConfirmDialog
-        isOpen={deletingSchedule !== null}
-        onClose={() => setDeletingSchedule(null)}
-        onConfirm={handleDelete}
-        title="Delete Schedule"
-        message={`Are you sure you want to delete the schedule for ${deletingSchedule ? formatDate(deletingSchedule.date) : ''} (${deletingSchedule?.startTime} - ${deletingSchedule?.endTime})?`}
-        confirmText="Delete"
-        cancelText="Cancel"
-        variant="danger"
-      />
+      {/* Weekly Schedule */}
+      <div className="bg-white rounded-lg shadow-sm border">
+        <div className="p-6 border-b">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-gray-900">Weekly Schedule</h2>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={goToPreviousWeek}
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <ChevronLeft className="h-5 w-5 text-gray-600" />
+                </button>
+                <span className="text-sm font-medium text-gray-700">{getWeekRange()}</span>
+                <button
+                  onClick={goToNextWeek}
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <ChevronRight className="h-5 w-5 text-gray-600" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="p-6 overflow-x-auto">
+          <table className="w-full min-w-[800px]">
+            <thead>
+              <tr>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">
+                  Staff / Veterinarians
+                </th>
+                {weekDates.map((date, index) => (
+                  <th key={index} className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-b">
+                    <div>{getDayName(date).substring(0, 3)}</div>
+                    <div className="text-gray-900 font-normal mt-1">
+                      {date.getDate()} {date.toLocaleDateString('en-US', { month: 'short' })}
+                    </div>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {filteredVets.map((vet) => {
+                const vetAvailability = allAvailability.find(av => av.veterinarianName === vet.name);
+                return (
+                  <tr key={vet.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-4 whitespace-nowrap">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                          <span className="text-blue-600 font-medium text-sm">
+                            {vet.name.split(' ').map(n => n[0]).join('')}
+                          </span>
+                        </div>
+                        <div>
+                          <div className="font-medium text-gray-900">{vet.name}</div>
+                          <div className="text-sm text-gray-500">{vet.position}</div>
+                        </div>
+                      </div>
+                    </td>
+                    {weekDates.map((date, dayIndex) => {
+                      const dayName = getDayName(date);
+                      const isWorkingDay = vetAvailability?.workingDays.includes(dayName);
+                      const dayAppointments = getAppointmentsForVetOnDate(vet.name, date);
+                      
+                      return (
+                        <td key={dayIndex} className="px-2 py-4 align-top">
+                          {isWorkingDay ? (
+                            <div className="space-y-1">
+                              {dayAppointments.map((apt, aptIndex) => (
+                                <div
+                                  key={apt.id}
+                                  className="bg-green-100 border border-green-300 rounded p-2 text-xs"
+                                >
+                                  <div className="flex items-center gap-1 mb-1">
+                                    <div className="w-4 h-4 rounded-full bg-blue-500 text-white text-[10px] flex items-center justify-center">
+                                      {aptIndex + 1}
+                                    </div>
+                                    <span className="font-medium">{formatTime12Hour(apt.time)}</span>
+                                  </div>
+                                  <div className="text-gray-700 truncate">{apt.petName}</div>
+                                  {apt.serviceType && (
+                                    <div className="text-gray-600 text-[10px] truncate">{apt.serviceType}</div>
+                                  )}
+                                </div>
+                              ))}
+                              {dayAppointments.length === 0 && (
+                                <div className="text-xs text-gray-400 text-center py-2">
+                                  Available
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="text-xs text-gray-400 text-center py-2">Off</div>
+                          )}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          {filteredVets.length === 0 && (
+            <div className="text-center py-12">
+              <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-500">No veterinarians found</p>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
-

@@ -12,6 +12,11 @@ import { MyAppointments } from './pages/MyAppointments';
 import { PaymentTimeline } from './pages/PaymentTimeline';
 import { Services } from './pages/Services';
 import { StaffManagement } from './pages/StaffManagement';
+import { VetDashboard } from './pages/VetDashboard';
+import { VetMyAppointments } from './pages/VetMyAppointments';
+import { VetManageAvailability } from './pages/VetManageAvailability';
+import { VetAppointmentHistory } from './pages/VetAppointmentHistory';
+import { VetProfileSettings } from './pages/VetProfileSettings';
 import { useRoleStore } from './stores/roleStore';
 import { useEffect } from 'react';
 
@@ -20,13 +25,14 @@ export default function App() {
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
-    const roleParam = urlParams.get('role') as 'vet' | 'staff' | 'owner' | null;
-    if (roleParam && ['vet', 'staff', 'owner'].includes(roleParam)) {
+    const roleParam = urlParams.get('role') as 'vet' | 'staff' | 'owner' | 'veterinarian' | null;
+    if (roleParam && ['vet', 'staff', 'owner', 'veterinarian'].includes(roleParam)) {
       setRole(roleParam);
     }
   }, [setRole]);
 
   const hasFullAccess = role === 'vet' || role === 'staff';
+  const isVeterinarian = role === 'veterinarian';
 
   // Show landing page if no role is selected
   if (!role || window.location.pathname === '/') {
@@ -48,10 +54,18 @@ export default function App() {
       <div className="min-h-screen bg-gray-50">
         <Layout>
           <Routes>
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/appointments" element={<Appointments />} />
-            {hasFullAccess ? (
+            <Route path="/dashboard" element={isVeterinarian ? <VetDashboard /> : <Dashboard />} />
+            {isVeterinarian ? (
               <>
+                <Route path="/vet-my-appointments" element={<VetMyAppointments />} />
+                <Route path="/vet-manage-availability" element={<VetManageAvailability />} />
+                <Route path="/pet-records" element={<PetRecords />} />
+                <Route path="/vet-appointment-history" element={<VetAppointmentHistory />} />
+                <Route path="/vet-profile-settings" element={<VetProfileSettings />} />
+              </>
+            ) : hasFullAccess ? (
+              <>
+                <Route path="/appointments" element={<Appointments />} />
                 <Route path="/schedule-management" element={<ScheduleManagement />} />
                 <Route path="/services" element={<Services />} />
                 <Route path="/staff-management" element={<StaffManagement />} />
@@ -59,6 +73,7 @@ export default function App() {
               </>
             ) : (
               <>
+                <Route path="/appointments" element={<Appointments />} />
                 <Route path="/my-appointments" element={<MyAppointments />} />
                 <Route path="/payment-timeline" element={<PaymentTimeline />} />
                 <Route path="/pet-records" element={<PetRecords />} />

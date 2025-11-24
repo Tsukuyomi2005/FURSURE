@@ -13,7 +13,8 @@ import {
   CalendarCheck,
   Receipt,
   Stethoscope,
-  Users
+  Users,
+  User
 } from 'lucide-react';
 import { useRoleStore } from '../stores/roleStore';
 import { cn } from '../lib/utils';
@@ -29,16 +30,24 @@ export function Layout({ children }: LayoutProps) {
   const { role, setRole } = useRoleStore();
 
   const hasFullAccess = role === 'vet' || role === 'staff';
+  const isVeterinarian = role === 'veterinarian';
 
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: Home, current: location.pathname === '/dashboard' },
-    { name: hasFullAccess ? 'Appointments' : 'Book Appointment', href: '/appointments', icon: Calendar, current: location.pathname === '/appointments' },
-    ...(hasFullAccess ? [
+    ...(isVeterinarian ? [
+      { name: 'My Appointments', href: '/vet-my-appointments', icon: CalendarCheck, current: location.pathname === '/vet-my-appointments' },
+      { name: 'Manage Availability', href: '/vet-manage-availability', icon: Clock, current: location.pathname === '/vet-manage-availability' },
+      { name: 'Pet Records', href: '/pet-records', icon: FileText, current: location.pathname === '/pet-records' },
+      { name: 'Appointment History', href: '/vet-appointment-history', icon: Calendar, current: location.pathname === '/vet-appointment-history' },
+      { name: 'Profile Settings', href: '/vet-profile-settings', icon: User, current: location.pathname === '/vet-profile-settings' },
+    ] : hasFullAccess ? [
+      { name: 'Appointments', href: '/appointments', icon: Calendar, current: location.pathname === '/appointments' },
       { name: 'Schedule Management', href: '/schedule-management', icon: Clock, current: location.pathname === '/schedule-management' },
       { name: 'Services', href: '/services', icon: Stethoscope, current: location.pathname === '/services' },
       { name: 'Veterinarians/Staff', href: '/staff-management', icon: Users, current: location.pathname === '/staff-management' },
       { name: 'Inventory & Analytics', href: '/inventory', icon: Package, current: location.pathname === '/inventory' },
     ] : [
+      { name: hasFullAccess ? 'Appointments' : 'Book Appointment', href: '/appointments', icon: Calendar, current: location.pathname === '/appointments' },
       { name: 'My Appointments', href: '/my-appointments', icon: CalendarCheck, current: location.pathname === '/my-appointments' },
       { name: 'Payment Timeline', href: '/payment-timeline', icon: Receipt, current: location.pathname === '/payment-timeline' },
       { name: 'Pet Records', href: '/pet-records', icon: FileText, current: location.pathname === '/pet-records' },
@@ -50,6 +59,7 @@ export function Layout({ children }: LayoutProps) {
       case 'vet': return 'bg-blue-100 text-blue-800';
       case 'staff': return 'bg-green-100 text-green-800';
       case 'owner': return 'bg-purple-100 text-purple-800';
+      case 'veterinarian': return 'bg-indigo-100 text-indigo-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -67,15 +77,15 @@ export function Layout({ children }: LayoutProps) {
         sidebarOpen ? "block" : "hidden"
       )}>
         <div className="fixed inset-0 bg-gray-600 bg-opacity-75" onClick={() => setSidebarOpen(false)} />
-        <div className="fixed inset-y-0 left-0 flex w-64 flex-col bg-white shadow-xl">
-          <div className="flex h-16 items-center justify-between px-4 border-b">
+        <div className="fixed inset-y-0 left-0 flex w-64 flex-col bg-gradient-to-b from-purple-700 via-purple-600 to-purple-800 shadow-xl">
+          <div className="flex h-16 items-center justify-between px-4 border-b border-purple-500/30">
             <div className="flex items-center gap-2">
-              <Heart className="h-8 w-8 text-blue-600" />
-              <span className="text-xl font-bold text-blue-600">FURSURE</span>
+              <Heart className="h-8 w-8 text-white" />
+              <span className="text-xl font-bold text-white">FURSURE</span>
             </div>
             <button
               onClick={() => setSidebarOpen(false)}
-              className="text-gray-400 hover:text-gray-600"
+              className="text-white/70 hover:text-white"
             >
               <X className="h-6 w-6" />
             </button>
@@ -87,10 +97,10 @@ export function Layout({ children }: LayoutProps) {
                 to={item.href}
                 onClick={() => setSidebarOpen(false)}
                 className={cn(
-                  "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+                  "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all relative",
                   item.current
-                    ? "bg-blue-50 text-blue-700"
-                    : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                    ? "bg-white/20 text-white border-l-4 border-white/50"
+                    : "text-white hover:bg-white/10 hover:text-white"
                 )}
               >
                 <item.icon className="h-5 w-5" />
@@ -98,10 +108,10 @@ export function Layout({ children }: LayoutProps) {
               </Link>
             ))}
           </nav>
-          <div className="p-4 border-t">
+          <div className="p-4 border-t border-purple-500/30">
             <button
               onClick={handleLogout}
-              className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 w-full transition-colors"
+              className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-white hover:bg-white/10 w-full transition-colors"
             >
               <LogOut className="h-5 w-5" />
               Switch Interface
@@ -111,11 +121,11 @@ export function Layout({ children }: LayoutProps) {
       </div>
 
       {/* Desktop sidebar */}
-      <div className="hidden lg:flex lg:w-64 lg:flex-col lg:bg-white lg:border-r">
-        <div className="flex h-16 items-center px-4 border-b">
+      <div className="hidden lg:flex lg:w-64 lg:flex-col lg:bg-gradient-to-b lg:from-purple-700 lg:via-purple-600 lg:to-purple-800 lg:border-r lg:border-purple-500/30">
+        <div className="flex h-16 items-center px-4 border-b border-purple-500/30">
           <div className="flex items-center gap-2">
-            <Heart className="h-8 w-8 text-blue-600" />
-            <span className="text-xl font-bold text-blue-600">FURSURE</span>
+            <Heart className="h-8 w-8 text-white" />
+            <span className="text-xl font-bold text-white">FURSURE</span>
           </div>
         </div>
         <nav className="flex-1 px-4 py-4 space-y-2">
@@ -124,10 +134,10 @@ export function Layout({ children }: LayoutProps) {
               key={item.name}
               to={item.href}
               className={cn(
-                "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+                "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all relative",
                 item.current
-                  ? "bg-blue-50 text-blue-700"
-                  : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                  ? "bg-white/20 text-white border-l-4 border-white/50"
+                  : "text-white hover:bg-white/10 hover:text-white"
               )}
             >
               <item.icon className="h-5 w-5" />
@@ -135,15 +145,15 @@ export function Layout({ children }: LayoutProps) {
             </Link>
           ))}
         </nav>
-        <div className="p-4 border-t">
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 w-full transition-colors"
-          >
-            <LogOut className="h-5 w-5" />
-            Switch Interface
-          </button>
-        </div>
+        <div className="p-4 border-t border-purple-500/30">
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-white hover:bg-white/10 w-full transition-colors"
+            >
+              <LogOut className="h-5 w-5" />
+              Switch Interface
+            </button>
+          </div>
       </div>
 
       {/* Main content */}
@@ -162,7 +172,7 @@ export function Layout({ children }: LayoutProps) {
               "px-3 py-1 rounded-full text-xs font-medium capitalize",
               getRoleBadgeColor()
             )}>
-              {role === 'vet' ? 'Veterinary Staff' : role === 'staff' ? 'Staff Member' : 'Pet Owner'}
+              {role === 'vet' ? 'Veterinary Staff' : role === 'staff' ? 'Staff Member' : role === 'veterinarian' ? 'Veterinarian' : 'Pet Owner'}
             </span>
           </div>
         </header>
