@@ -1,4 +1,4 @@
-import { useState, type ChangeEvent } from 'react';
+import { useState, useMemo, type ChangeEvent } from 'react';
 import Calendar from 'react-calendar';
 import { Clock, ChevronRight, ChevronLeft, CreditCard, Smartphone, User, Phone, Mail, FileText, Building2 } from 'lucide-react';
 import { useAppointmentStore } from '../stores/appointmentStore';
@@ -7,6 +7,7 @@ import { useRoleStore } from '../stores/roleStore';
 import { usePetRecordsStore } from '../stores/petRecordsStore';
 import { useServiceStore } from '../stores/serviceStore';
 import { useStaffStore } from '../stores/staffStore';
+import { useAvailabilityStore } from '../stores/availabilityStore';
 import { PaymentModal } from '../components/PaymentModal';
 import { AppointmentActions } from '../components/AppointmentActions';
 import { toast } from 'sonner';
@@ -22,6 +23,7 @@ export function Appointments() {
   const { records: petRecords } = usePetRecordsStore();
   const { services } = useServiceStore();
   const { staff } = useStaffStore();
+  const { allAvailability } = useAvailabilityStore();
   
   // Get active veterinarians from staff
   const allActiveVets = staff
@@ -29,10 +31,15 @@ export function Appointments() {
     .map(member => member.name)
     .sort();
   
+  // For admin accounts (walk-ins), automatically set date to today
+  const isAdmin = role === 'vet' || role === 'staff';
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
   const [currentStep, setCurrentStep] = useState<BookingStep>(1);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [selectedVet, setSelectedVet] = useState<string>('');
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(isAdmin ? today : null);
   const [selectedTime, setSelectedTime] = useState<string>('');
   const [formData, setFormData] = useState({
     petName: '',
@@ -44,18 +51,99 @@ export function Appointments() {
   const [showPayment, setShowPayment] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'at_clinic' | 'online'>('at_clinic');
 
-  const hasFullAccess = role === 'vet' || role === 'staff';
+  // Get day name from date
+  const getDayName = (date: Date): string => {
+    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    return days[date.getDay()];
+  };
 
-  // If user has full access, show the old appointment management view
-  if (hasFullAccess) {
-    return <AppointmentManagementView />;
-  }
+  // Check if a date is available (at least one vet works on that day)
+  const isDateAvailable = (date: Date): boolean => {
+    const dayName = getDayName(date);
+    return allAvailability.some(avail => avail.workingDays.includes(dayName));
+  };
 
-  const timeSlots = [
-    '08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
-    '12:00', '12:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30',
-    '16:00', '16:30', '17:00', '17:30'
-  ];
+  // Generate time slots based on all veterinarians' availability
+  const generateTimeSlots = useMemo(() => {
+    if (allAvailability.length === 0) {
+      // Fallback to default slots if no availability data
+      return [
+        '08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
+        '12:00', '12:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30',
+        '16:00', '16:30', '17:00', '17:30'
+      ];
+    }
+
+    // Find earliest start time and latest end time
+    let earliestStart = '23:59';
+    let latestEnd = '00:00';
+    
+    allAvailability.forEach(avail => {
+      if (avail.startTime < earliestStart) earliestStart = avail.startTime;
+      if (avail.endTime > latestEnd) latestEnd = avail.endTime;
+    });
+
+    // Generate slots with 30-minute intervals between earliest and latest
+    const slots: string[] = [];
+    const parseTime = (timeStr: string): number => {
+      const [hours, minutes] = timeStr.split(':').map(Number);
+      return hours * 60 + minutes;
+    };
+
+    const formatTime = (minutes: number): string => {
+      const hours = Math.floor(minutes / 60);
+      const mins = minutes % 60;
+      return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
+    };
+
+    const startMinutes = parseTime(earliestStart);
+    const endMinutes = parseTime(latestEnd);
+    
+    for (let minutes = startMinutes; minutes < endMinutes; minutes += 30) {
+      slots.push(formatTime(minutes));
+    }
+
+    return slots;
+  }, [allAvailability]);
+
+  // Get available time slots for selected date
+  const getAvailableTimeSlotsForDate = (date: Date | null): string[] => {
+    if (!date) return [];
+    
+    const dayName = getDayName(date);
+    const availableTimes = new Set<string>();
+
+    // Find all vets working on this day
+    allAvailability.forEach(avail => {
+      if (avail.workingDays.includes(dayName)) {
+        // Generate slots for this vet's working hours
+        const parseTime = (timeStr: string): number => {
+          const [hours, minutes] = timeStr.split(':').map(Number);
+          return hours * 60 + minutes;
+        };
+
+        const formatTime = (minutes: number): string => {
+          const hours = Math.floor(minutes / 60);
+          const mins = minutes % 60;
+          return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
+        };
+
+        const startMinutes = parseTime(avail.startTime);
+        const endMinutes = parseTime(avail.endTime);
+        const duration = avail.appointmentDuration || 30;
+
+        // Generate slots with the vet's appointment duration
+        for (let minutes = startMinutes; minutes + duration <= endMinutes; minutes += duration) {
+          availableTimes.add(formatTime(minutes));
+        }
+      }
+    });
+
+    return Array.from(availableTimes).sort();
+  };
+
+  const dateForTimeSlots: Date | null = isAdmin ? today : selectedDate;
+  const timeSlots = dateForTimeSlots ? getAvailableTimeSlotsForDate(dateForTimeSlots) : generateTimeSlots;
 
   const formatTime12Hour = (time24: string): string => {
     const [hours, minutes] = time24.split(':').map(Number);
@@ -71,38 +159,63 @@ export function Appointments() {
     return `${year}-${month}-${day}`;
   };
 
-  // Get available vets for selected date and time
+  // Get available vets for selected date and time based on their availability
   const getAvailableVets = (): string[] => {
-    if (!selectedDate || !selectedTime) {
+    const dateToCheck = isAdmin ? today : selectedDate;
+    if (!dateToCheck || !selectedTime) {
       return allActiveVets;
     }
 
-    const dateStr = formatDateLocal(selectedDate);
-    const schedules = getSchedulesByDate(dateStr);
-    const vetsInSchedule = new Set<string>();
-    
+    const dayName = getDayName(dateToCheck);
     const parseTime = (timeStr: string): number => {
       const [hours, minutes] = timeStr.split(':').map(Number);
       return hours * 60 + minutes;
     };
     
     const requestedTime = parseTime(selectedTime);
+    const availableVets = new Set<string>();
     
-    schedules.forEach(schedule => {
-      const startTime = parseTime(schedule.startTime);
-      const endTime = parseTime(schedule.endTime);
-      
-      if (requestedTime >= startTime && requestedTime < endTime) {
-        schedule.veterinarians.forEach(vet => vetsInSchedule.add(vet));
+    // Check each vet's availability
+    allAvailability.forEach(avail => {
+      // Check if vet works on this day
+      if (avail.workingDays.includes(dayName)) {
+        const startMinutes = parseTime(avail.startTime);
+        const endMinutes = parseTime(avail.endTime);
+        const duration = avail.appointmentDuration || 30;
+        
+        // Check if the requested time falls within working hours
+        // and there's enough time for an appointment
+        if (requestedTime >= startMinutes && requestedTime + duration <= endMinutes) {
+          // Find the vet name matching this availability
+          const vet = allActiveVets.find(v => v === avail.veterinarianName);
+          if (vet) {
+            availableVets.add(vet);
+          }
+        }
       }
     });
     
-    // If no vets found in schedules, return all active veterinarians
-    if (vetsInSchedule.size === 0) {
-      return allActiveVets;
+    // Fallback: if no vets found by availability, check schedules
+    if (availableVets.size === 0) {
+      const dateStr = formatDateLocal(dateToCheck);
+      const schedules = getSchedulesByDate(dateStr);
+      
+      schedules.forEach(schedule => {
+        const startTime = parseTime(schedule.startTime);
+        const endTime = parseTime(schedule.endTime);
+        
+        if (requestedTime >= startTime && requestedTime < endTime) {
+          schedule.veterinarians.forEach(vet => availableVets.add(vet));
+        }
+      });
+      
+      // If still no vets found, return all active veterinarians
+      if (availableVets.size === 0) {
+        return allActiveVets;
+      }
     }
     
-    return Array.from(vetsInSchedule).sort();
+    return Array.from(availableVets).sort();
   };
 
   const availableVets = getAvailableVets();
@@ -113,10 +226,15 @@ export function Appointments() {
         toast.error('Please select a service');
         return;
       }
+      // For admin, auto-set date to today when moving to step 2
+      if (isAdmin && !selectedDate) {
+        setSelectedDate(today);
+      }
       setCurrentStep(2);
     } else if (currentStep === 2) {
-      if (!selectedDate || !selectedTime) {
-        toast.error('Please select a date and time');
+      const dateToCheck = isAdmin ? today : selectedDate;
+      if (!dateToCheck || !selectedTime) {
+        toast.error(isAdmin ? 'Please select a time' : 'Please select a date and time');
         return;
       }
       setCurrentStep(3);
@@ -125,7 +243,12 @@ export function Appointments() {
         toast.error('Please select a veterinarian');
         return;
       }
-      setCurrentStep(4);
+      // For admin, skip payment step and go directly to booking
+      if (isAdmin) {
+        handleBookWalkIn();
+      } else {
+        setCurrentStep(4);
+      }
     }
   };
 
@@ -140,15 +263,64 @@ export function Appointments() {
   };
 
   const isSlotBooked = (time: string) => {
-    if (!selectedDate) return false;
-    const dateStr = formatDateLocal(selectedDate);
-    return appointments.some(apt => apt.date === dateStr && apt.time === time);
+    const dateToCheck = isAdmin ? today : selectedDate;
+    if (!dateToCheck) return false;
+    const dateStr = formatDateLocal(dateToCheck);
+    return appointments.some(apt => apt.date === dateStr && apt.time === time && apt.status !== 'cancelled');
+  };
+
+  // Check if a time slot is available based on veterinarian availability
+  const isSlotAvailableByAvailability = (time: string): boolean => {
+    const dateToCheck = isAdmin ? today : selectedDate;
+    if (!dateToCheck) return false;
+    
+    const dayName = getDayName(dateToCheck);
+    const parseTime = (timeStr: string): number => {
+      const [hours, minutes] = timeStr.split(':').map(Number);
+      return hours * 60 + minutes;
+    };
+    
+    const requestedTime = parseTime(time);
+    
+    // If no availability data exists, allow all slots (fallback)
+    if (allAvailability.length === 0) {
+      return true;
+    }
+    
+    // Check if at least one veterinarian is available at this time
+    return allAvailability.some(avail => {
+      if (!avail.workingDays.includes(dayName)) return false;
+      
+      const startMinutes = parseTime(avail.startTime);
+      const endMinutes = parseTime(avail.endTime);
+      const duration = avail.appointmentDuration || 30;
+      
+      // Check if the requested time falls within working hours
+      // and there's enough time for an appointment
+      return requestedTime >= startMinutes && requestedTime + duration <= endMinutes;
+    });
   };
 
   const isSlotAvailable = (time: string) => {
-    if (!selectedDate) return false;
-    const dateStr = formatDateLocal(selectedDate);
-    return !isSlotBooked(time) && isTimeSlotAvailable(dateStr, time);
+    const dateToCheck = isAdmin ? today : selectedDate;
+    if (!dateToCheck) return false;
+    
+    // Check if slot is booked first
+    if (isSlotBooked(time)) return false;
+    
+    const dateStr = formatDateLocal(dateToCheck);
+    
+    // Check availability based on veterinarian availability settings (primary check)
+    const availabilityCheck = isSlotAvailableByAvailability(time);
+    
+    // Check availability based on veterinarian schedules (secondary check for backward compatibility)
+    const scheduleAvailable = isTimeSlotAvailable(dateStr, time);
+    
+    // Slot is available if either:
+    // 1. Availability check passes (veterinarians have set their working hours), OR
+    // 2. Schedule check passes (admin has created specific schedules), OR
+    // 3. No availability data exists (fallback to allow booking)
+    return availabilityCheck || scheduleAvailable || allAvailability.length === 0;
   };
 
   const handleTimeSlotClick = (time: string) => {
@@ -170,13 +342,16 @@ export function Appointments() {
       toast.error('Phone number is required');
       return false;
     }
-    if (!formData.email.trim()) {
-      toast.error('Email is required');
-      return false;
-    }
-    if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      toast.error('Email is invalid');
-      return false;
+    // Email is only required for pet owners
+    if (role === 'owner') {
+      if (!formData.email.trim()) {
+        toast.error('Email is required');
+        return false;
+      }
+      if (!/\S+@\S+\.\S+/.test(formData.email)) {
+        toast.error('Email is invalid');
+        return false;
+      }
     }
     return true;
   };
@@ -191,7 +366,7 @@ export function Appointments() {
         petName: formData.petName,
         ownerName: formData.ownerName,
         phone: formData.phone,
-        email: formData.email,
+        email: role === 'owner' ? formData.email : (formData.email || ''),
         date: formatDateLocal(selectedDate),
         time: selectedTime,
         reason: formData.reason,
@@ -236,6 +411,50 @@ export function Appointments() {
     setShowPayment(true);
   };
 
+  const handleBookWalkIn = async () => {
+    if (!validateForm() || !selectedService || !selectedVet || !selectedTime) {
+      return;
+    }
+
+    try {
+      await addAppointment({
+        petName: formData.petName,
+        ownerName: formData.ownerName,
+        phone: formData.phone,
+        email: formData.email || '',
+        date: formatDateLocal(today),
+        time: selectedTime,
+        reason: formData.reason,
+        vet: selectedVet,
+        status: 'approved', // Auto-approve walk-ins
+        serviceType: selectedService.id,
+        price: selectedService.price,
+        paymentStatus: 'pending', // Payment happens at clinic counter
+        paymentData: {
+          method: 'at_clinic'
+        }
+      });
+
+      toast.success('Walk-in appointment booked and approved!');
+      
+      // Reset form
+      setCurrentStep(1);
+      setSelectedService(null);
+      setSelectedVet('');
+      setSelectedTime('');
+      setFormData({
+        petName: '',
+        ownerName: '',
+        phone: '',
+        email: '',
+        reason: '',
+      });
+    } catch (error) {
+      console.error('Failed to book walk-in appointment:', error);
+      toast.error('Failed to book walk-in appointment. Please try again.');
+    }
+  };
+
   const handleBookAppointment = async () => {
     if (!validateForm() || !selectedService || !selectedVet || !selectedDate || !selectedTime) {
       return;
@@ -246,7 +465,7 @@ export function Appointments() {
         petName: formData.petName,
         ownerName: formData.ownerName,
         phone: formData.phone,
-        email: formData.email,
+        email: role === 'owner' ? formData.email : (formData.email || ''),
         date: formatDateLocal(selectedDate),
         time: selectedTime,
         reason: formData.reason,
@@ -282,12 +501,18 @@ export function Appointments() {
     }
   };
 
-  const steps = [
-    { number: 1, label: 'Select Service' },
-    { number: 2, label: 'Select Date and Time' },
-    { number: 3, label: 'Choose Veterinarian' },
-    { number: 4, label: 'Payment Method' },
-  ];
+  const steps = isAdmin 
+    ? [
+        { number: 1, label: 'Select Service' },
+        { number: 2, label: 'Select Time' },
+        { number: 3, label: 'Choose Veterinarian' },
+      ]
+    : [
+        { number: 1, label: 'Select Service' },
+        { number: 2, label: 'Select Date and Time' },
+        { number: 3, label: 'Choose Veterinarian' },
+        { number: 4, label: 'Payment Method' },
+      ];
 
   return (
     <div className="space-y-6">
@@ -380,22 +605,56 @@ export function Appointments() {
       {/* Step 2: Select Date and Time */}
       {currentStep === 2 && (
         <div className="bg-white rounded-lg p-6 shadow-sm border">
-          <h2 className="text-2xl font-semibold text-gray-900 mb-6">Select Date and Time</h2>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Select Date</h3>
-              <Calendar
-                onChange={(value) => setSelectedDate(value as Date)}
-                value={selectedDate}
-                className="w-full"
-                minDate={new Date()}
-              />
+          <h2 className="text-2xl font-semibold text-gray-900 mb-6">
+            {isAdmin ? 'Select Time' : 'Select Date and Time'}
+          </h2>
+          {isAdmin && (
+            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-sm text-blue-800">
+                <strong>Walk-in Appointment</strong> - Date: {today.toLocaleDateString()}
+              </p>
             </div>
+          )}
+          <div className={`grid grid-cols-1 ${isAdmin ? '' : 'lg:grid-cols-2'} gap-6`}>
+            {!isAdmin && (
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Select Date</h3>
+                <Calendar
+                  onChange={(value) => {
+                    const date = value as Date;
+                    if (isDateAvailable(date)) {
+                      setSelectedDate(date);
+                      setSelectedTime(''); // Reset time when date changes
+                    } else {
+                      toast.error('No veterinarians are available on this day. Please select another date.');
+                      setSelectedDate(null);
+                      setSelectedTime('');
+                    }
+                  }}
+                  value={selectedDate}
+                  className="w-full"
+                  minDate={new Date()}
+                  tileDisabled={({ date, view }) => {
+                    // Only disable dates in month view
+                    if (view === 'month') {
+                      return !isDateAvailable(date);
+                    }
+                    return false;
+                  }}
+                  tileClassName={({ date, view }) => {
+                    if (view === 'month' && !isDateAvailable(date)) {
+                      return 'disabled-date';
+                    }
+                    return null;
+                  }}
+                />
+              </div>
+            )}
             <div>
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                Available Times {selectedDate ? `- ${selectedDate.toLocaleDateString()}` : ''}
+                Available Times {isAdmin ? `- ${today.toLocaleDateString()}` : (selectedDate ? `- ${selectedDate.toLocaleDateString()}` : '')}
               </h3>
-              {selectedDate ? (
+              {(isAdmin || selectedDate) ? (
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   {timeSlots.map((time) => {
                     const isBooked = isSlotBooked(time);
@@ -409,13 +668,17 @@ export function Appointments() {
                         className={`p-3 rounded-lg text-sm font-medium transition-colors ${
                           selectedTime === time
                             ? 'bg-purple-600 text-white shadow-lg shadow-purple-200'
+                            : isBooked
+                            ? 'bg-red-100 text-red-700 border-2 border-red-300 cursor-not-allowed'
                             : !isAvailable
                             ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                             : 'bg-purple-50 text-purple-700 hover:bg-purple-100'
                         }`}
+                        title={isBooked ? 'This time slot is already booked' : !isAvailable ? 'This time slot is not available' : 'Click to select this time'}
                       >
                         <Clock className="h-4 w-4 inline mr-1" />
                         {formatTime12Hour(time)}
+                        {isBooked && <span className="ml-1 text-xs">(Booked)</span>}
                       </button>
                     );
                   })}
@@ -435,7 +698,7 @@ export function Appointments() {
             </button>
             <button
               onClick={handleNext}
-              disabled={!selectedDate || !selectedTime}
+              disabled={(!isAdmin && !selectedDate) || !selectedTime}
               className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
               Next
@@ -445,20 +708,77 @@ export function Appointments() {
         </div>
       )}
 
-      {/* Step 3: Choose Veterinarian */}
+      {/* Step 3: Choose Veterinarian (and Customer Details for Admin) */}
       {currentStep === 3 && (
         <div className="bg-white rounded-lg p-6 shadow-sm border">
-          <h2 className="text-2xl font-semibold text-gray-900 mb-6">Choose Veterinarian</h2>
-          {selectedDate && selectedTime ? (
+          <h2 className="text-2xl font-semibold text-gray-900 mb-6">
+            {isAdmin ? 'Customer Details & Veterinarian' : 'Choose Veterinarian'}
+          </h2>
+          {((isAdmin && today) || selectedDate) && selectedTime ? (
             <>
               <div className="mb-4 p-3 bg-purple-50 rounded-lg">
                 <p className="text-sm text-purple-800">
-                  <strong>Selected:</strong> {selectedDate.toLocaleDateString()} at {formatTime12Hour(selectedTime)}
+                  <strong>Selected:</strong> {(isAdmin ? today : selectedDate)!.toLocaleDateString()} at {formatTime12Hour(selectedTime)}
                 </p>
                 <p className="text-xs text-purple-600 mt-1">
                   Available veterinarians for this date and time:
                 </p>
               </div>
+              
+              {/* Customer Details Form for Admin */}
+              {isAdmin && (
+                <div className="mb-6 space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Pet Name *
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.petName}
+                      onChange={(e: ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, petName: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      placeholder="Enter pet name"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Customer Name *
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.ownerName}
+                      onChange={(e: ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, ownerName: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      placeholder="Enter customer name"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Phone Number *
+                    </label>
+                    <input
+                      type="tel"
+                      value={formData.phone}
+                      onChange={(e: ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, phone: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      placeholder="Enter phone number"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Reason for Visit (Optional)
+                    </label>
+                    <textarea
+                      value={formData.reason}
+                      onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setFormData({ ...formData, reason: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      rows={3}
+                      placeholder="Describe the reason for the visit"
+                    />
+                  </div>
+                </div>
+              )}
+              
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {availableVets.length > 0 ? (
                   availableVets.map((vet) => (
@@ -496,20 +816,30 @@ export function Appointments() {
               <ChevronLeft className="h-5 w-5" />
               Back
             </button>
-            <button
-              onClick={handleNext}
-              disabled={!selectedVet || !selectedDate || !selectedTime}
-              className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-            >
-              Next
-              <ChevronRight className="h-5 w-5" />
-            </button>
+            {isAdmin ? (
+              <button
+                onClick={handleBookWalkIn}
+                disabled={!selectedVet || !selectedTime || !formData.petName || !formData.ownerName || !formData.phone}
+                className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                Book Walk-in Appointment
+              </button>
+            ) : (
+              <button
+                onClick={handleNext}
+                disabled={!selectedVet || !selectedDate || !selectedTime}
+                className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                Next
+                <ChevronRight className="h-5 w-5" />
+              </button>
+            )}
           </div>
         </div>
       )}
 
-      {/* Step 4: Payment Method */}
-      {currentStep === 4 && (
+      {/* Step 4: Payment Method (Only for pet owners) */}
+      {currentStep === 4 && !isAdmin && (
         <div className="bg-white rounded-lg p-6 shadow-sm border">
           {/* Form Fields - Moved to top */}
           <div className="space-y-4 mb-8">
@@ -517,18 +847,28 @@ export function Appointments() {
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Pet Name *
               </label>
-              <select
-                value={formData.petName}
-                onChange={(e: ChangeEvent<HTMLSelectElement>) => setFormData({ ...formData, petName: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-              >
-                <option value="">Select a pet</option>
-                {petRecords.map((pet) => (
-                  <option key={pet.id} value={pet.petName}>
-                    {pet.petName} {pet.breed ? `(${pet.breed})` : ''}
-                  </option>
-                ))}
-              </select>
+              {role === 'owner' ? (
+                <select
+                  value={formData.petName}
+                  onChange={(e: ChangeEvent<HTMLSelectElement>) => setFormData({ ...formData, petName: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                >
+                  <option value="">Select a pet</option>
+                  {petRecords.map((pet) => (
+                    <option key={pet.id} value={pet.petName}>
+                      {pet.petName} {pet.breed ? `(${pet.breed})` : ''}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  type="text"
+                  value={formData.petName}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, petName: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  placeholder="Enter pet name"
+                />
+              )}
             </div>
 
             <div>
@@ -540,7 +880,7 @@ export function Appointments() {
                 value={formData.ownerName}
                 onChange={(e: ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, ownerName: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                placeholder="Enter your name"
+                placeholder={role === 'owner' ? "Enter your name" : "Enter customer name"}
               />
             </div>
 
@@ -557,18 +897,20 @@ export function Appointments() {
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Email Address *
-              </label>
-              <input
-                type="email"
-                value={formData.email}
-                onChange={(e: ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, email: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                placeholder="Enter email address"
-              />
-            </div>
+            {role === 'owner' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Email Address *
+                </label>
+                <input
+                  type="email"
+                  value={formData.email}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, email: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  placeholder="Enter email address"
+                />
+              </div>
+            )}
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -676,7 +1018,7 @@ export function Appointments() {
           <div className="mb-8">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">Select Payment Method</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Pay Balance at Clinic */}
+              {/* Pay Balance at Clinic / Pay in Cash */}
               <button
                 onClick={() => setPaymentMethod('at_clinic')}
                 className={`p-4 rounded-lg border-2 text-left transition-all duration-200 ${
@@ -688,11 +1030,22 @@ export function Appointments() {
                 <div className="flex items-start gap-3">
                   <Building2 className={`h-6 w-6 mt-1 ${paymentMethod === 'at_clinic' ? 'text-blue-600' : 'text-gray-600'}`} />
                   <div className="flex-1">
-                    <h3 className="font-semibold text-gray-900 mb-2">Pay Balance at Clinic</h3>
+                    <h3 className="font-semibold text-gray-900 mb-2">
+                      {role === 'owner' ? 'Pay Balance at Clinic' : 'Pay in Cash'}
+                    </h3>
                     {selectedService && (
                       <div className="text-sm text-gray-600 space-y-1">
-                        <p>Pay the ₱{Math.round(selectedService.price * 0.3).toLocaleString()} deposit online now.</p>
-                        <p>Pay the remaining ₱{(selectedService.price - Math.round(selectedService.price * 0.3)).toLocaleString()} at the clinic on the day of your appointment.</p>
+                        {role === 'owner' ? (
+                          <>
+                            <p>Pay the ₱{Math.round(selectedService.price * 0.3).toLocaleString()} deposit online now.</p>
+                            <p>Pay the remaining ₱{(selectedService.price - Math.round(selectedService.price * 0.3)).toLocaleString()} at the clinic on the day of your appointment.</p>
+                          </>
+                        ) : (
+                          <>
+                            <p>Pay the ₱{Math.round(selectedService.price * 0.3).toLocaleString()} deposit online now.</p>
+                            <p>Pay the remaining ₱{(selectedService.price - Math.round(selectedService.price * 0.3)).toLocaleString()} here on the day of the appointment.</p>
+                          </>
+                        )}
                       </div>
                     )}
                   </div>
@@ -734,7 +1087,7 @@ export function Appointments() {
             </button>
             <button
               onClick={paymentMethod === 'online' ? handleProceedToPayment : handleBookAppointment}
-              disabled={!formData.petName || !formData.ownerName || !formData.phone || !formData.email}
+              disabled={!formData.petName || !formData.ownerName || !formData.phone || (role === 'owner' && !formData.email)}
               className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Book Appointment
@@ -754,204 +1107,3 @@ export function Appointments() {
   );
 }
 
-// Old appointment management view for staff/vet
-function AppointmentManagementView() {
-  const { appointments, updateAppointment } = useAppointmentStore();
-  const { isTimeSlotAvailable } = useScheduleStore();
-  const { role } = useRoleStore();
-  const [selectedDate, setSelectedDate] = useState(new Date());
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
-
-  const hasFullAccess = role === 'vet' || role === 'staff';
-
-  const timeSlots = [
-    '08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
-    '12:00', '12:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30',
-    '16:00', '16:30', '17:00', '17:30'
-  ];
-
-  const formatTime12Hour = (time24: string): string => {
-    const [hours, minutes] = time24.split(':').map(Number);
-    const period = hours >= 12 ? 'PM' : 'AM';
-    const hours12 = hours % 12 || 12;
-    return `${hours12}:${minutes.toString().padStart(2, '0')} ${period}`;
-  };
-
-  const formatDateLocal = (date: Date): string => {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  };
-
-  const parseDateLocal = (dateStr: string): Date => {
-    const [year, month, day] = dateStr.split('-').map(Number);
-    return new Date(year, month - 1, day);
-  };
-
-  const selectedDateStr = selectedDate.toDateString();
-  const selectedDateISO = formatDateLocal(selectedDate);
-  const dayAppointments = appointments.filter(apt => {
-    const aptDate = parseDateLocal(apt.date);
-    return aptDate.toDateString() === selectedDateStr;
-  });
-
-  const isSlotBooked = (time: string) => {
-    return dayAppointments.some(apt => apt.time === time);
-  };
-
-  const isSlotScheduled = (time: string) => {
-    if (!hasFullAccess) {
-      return isTimeSlotAvailable(selectedDateISO, time);
-    }
-    return true;
-  };
-
-  const handleSlotClick = (time: string) => {
-    if (isSlotBooked(time)) return;
-    setSelectedSlot(time);
-    setIsModalOpen(true);
-  };
-
-  const handleStatusUpdate = async (appointmentId: string, status: Appointment['status'], notes?: string, newDate?: string, newTime?: string) => {
-    const appointment = appointments.find(apt => apt.id === appointmentId);
-    if (!appointment) return;
-
-    const updates: Partial<Appointment> = { status };
-    if (notes) updates.notes = notes;
-    if (newDate && newTime) {
-      updates.date = newDate;
-      updates.time = newTime;
-    }
-
-    try {
-      await updateAppointment(appointmentId, updates);
-      toast.success(`Appointment ${status}`);
-    } catch (error) {
-      console.error('Failed to update appointment:', error);
-      toast.error('Failed to update appointment');
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'approved': return 'bg-green-100 text-green-800';
-      case 'pending': return 'bg-yellow-100 text-yellow-800';
-      case 'rejected': return 'bg-red-100 text-red-800';
-      case 'cancelled': return 'bg-gray-100 text-gray-800';
-      case 'rescheduled': return 'bg-blue-100 text-blue-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Appointment Scheduling</h1>
-        <p className="text-gray-600">
-          Manage clinic appointments
-        </p>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-lg p-6 shadow-sm border">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Select Date</h3>
-          <Calendar
-            onChange={(value) => setSelectedDate(value as Date)}
-            value={selectedDate}
-            className="w-full"
-            minDate={new Date()}
-          />
-        </div>
-
-        <div className="bg-white rounded-lg p-6 shadow-sm border">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">
-            Available Times - {selectedDate.toLocaleDateString()}
-          </h3>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-            {timeSlots.map((time) => {
-              const isBooked = isSlotBooked(time);
-              const isScheduled = isSlotScheduled(time);
-              const isAvailable = !isBooked && (hasFullAccess || isScheduled);
-              
-              return (
-                <button
-                  key={time}
-                  onClick={() => handleSlotClick(time)}
-                  disabled={!isAvailable}
-                  className={`p-3 rounded-lg text-sm font-medium transition-colors ${
-                    !isAvailable
-                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                      : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
-                  }`}
-                >
-                  <Clock className="h-4 w-4 inline mr-1" />
-                  {!hasFullAccess ? formatTime12Hour(time) : time}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-
-      <div className="bg-white rounded-lg shadow-sm border">
-        <div className="p-6 border-b">
-          <h3 className="text-lg font-semibold text-gray-900">
-            Appointments for {selectedDate.toLocaleDateString()}
-          </h3>
-        </div>
-        <div className="p-6">
-          {dayAppointments.length === 0 ? (
-            <div className="text-center py-8">
-              <p className="text-gray-500">No appointments scheduled for this date</p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {dayAppointments.map((appointment) => (
-                <div key={appointment.id} className="border rounded-lg p-4">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-4 mb-2">
-                        <h4 className="font-semibold text-gray-900">{appointment.petName}</h4>
-                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(appointment.status)}`}>
-                          {appointment.status}
-                        </span>
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 text-sm text-gray-600">
-                        <div className="flex items-center gap-1">
-                          <Clock className="h-4 w-4" />
-                          {appointment.time}
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <span>{appointment.ownerName}</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <span>{appointment.phone}</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <span>{appointment.email}</span>
-                        </div>
-                      </div>
-                      {appointment.reason && (
-                        <div className="mt-2 text-sm text-gray-600">
-                          <span>{appointment.reason}</span>
-                        </div>
-                      )}
-                    </div>
-                    {hasFullAccess && (
-                      <AppointmentActions
-                        appointment={appointment}
-                        onStatusUpdate={handleStatusUpdate}
-                      />
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}

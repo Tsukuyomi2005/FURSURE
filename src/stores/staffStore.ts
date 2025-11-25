@@ -13,6 +13,7 @@ function convertStaff(doc: {
   email: string;
   phone: string;
   status: "active" | "inactive";
+  licenseNumber?: string;
 }): Staff {
   return {
     id: doc._id,
@@ -21,6 +22,7 @@ function convertStaff(doc: {
     email: doc.email,
     phone: doc.phone,
     status: doc.status,
+    licenseNumber: doc.licenseNumber,
   };
 }
 
@@ -37,13 +39,15 @@ export function useStaffStore() {
   const staff: Staff[] = staffData?.map(convertStaff) ?? [];
 
   const addStaff = async (staffMember: Omit<Staff, 'id'>) => {
-    await addStaffMutation({
+    const staffId = await addStaffMutation({
       name: staffMember.name,
       position: staffMember.position,
       email: staffMember.email,
       phone: staffMember.phone,
       status: staffMember.status,
+      licenseNumber: staffMember.licenseNumber,
     });
+    return { id: staffId };
   };
 
   const updateStaff = async (id: string, updates: Partial<Staff>) => {
@@ -54,6 +58,7 @@ export function useStaffStore() {
       email?: string;
       phone?: string;
       status?: "active" | "inactive";
+      licenseNumber?: string;
     } = {
       id: id as Id<"staff">,
     };
@@ -63,6 +68,7 @@ export function useStaffStore() {
     if (updates.email !== undefined) updateData.email = updates.email;
     if (updates.phone !== undefined) updateData.phone = updates.phone;
     if (updates.status !== undefined) updateData.status = updates.status;
+    if (updates.licenseNumber !== undefined) updateData.licenseNumber = updates.licenseNumber;
 
     await updateStaffMutation(updateData);
   };

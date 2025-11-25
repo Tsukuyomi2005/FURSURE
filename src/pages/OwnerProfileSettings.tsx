@@ -1,19 +1,50 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { User, Mail, Phone, Save, Lock, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
 
-// For now, using placeholder data. In production, this would come from auth/profile
-const INITIAL_PROFILE = {
-  name: 'John Doe',
-  email: 'john.doe@example.com',
-  phone: '+63 912 345 6789',
-  address: '123 Main Street, Quezon City, Metro Manila',
+// Load user profile from registration data
+const loadUserProfile = () => {
+  try {
+    const currentUserStr = localStorage.getItem('fursure_current_user');
+    if (currentUserStr) {
+      const currentUser = JSON.parse(currentUserStr);
+      const storedUsers = JSON.parse(localStorage.getItem('fursure_users') || '{}');
+      const userData = storedUsers[currentUser.username || currentUser.email];
+      
+      if (userData) {
+        // Combine firstName and lastName into full name
+        const fullName = `${userData.firstName || ''} ${userData.lastName || ''}`.trim();
+        
+        return {
+          fullName: fullName,
+          email: userData.email || '',
+          phone: userData.phone || '',
+          address: userData.address || '',
+        };
+      }
+    }
+  } catch (error) {
+    console.error('Error loading user profile:', error);
+  }
+  
+  // Return empty profile if no data found
+  return {
+    fullName: '',
+    email: '',
+    phone: '',
+    address: '',
+  };
 };
 
 export function OwnerProfileSettings() {
-  const [profile, setProfile] = useState(INITIAL_PROFILE);
+  const [profile, setProfile] = useState(loadUserProfile());
   const [isEditing, setIsEditing] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Reload profile when component mounts
+  useEffect(() => {
+    setProfile(loadUserProfile());
+  }, []);
 
   const handleChange = (field: string, value: string) => {
     setProfile(prev => ({ ...prev, [field]: value }));
@@ -25,8 +56,8 @@ export function OwnerProfileSettings() {
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
 
-    if (!profile.name.trim()) {
-      newErrors.name = 'Name is required';
+    if (!profile.fullName.trim()) {
+      newErrors.fullName = 'Full name is required';
     }
 
     if (!profile.email.trim()) {
@@ -39,6 +70,10 @@ export function OwnerProfileSettings() {
       newErrors.phone = 'Phone number is required';
     }
 
+    if (!profile.address.trim()) {
+      newErrors.address = 'Address is required';
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -49,9 +84,43 @@ export function OwnerProfileSettings() {
       return;
     }
 
-    // In production, this would save to the backend
-    toast.success('Profile updated successfully');
-    setIsEditing(false);
+    // Update user data in localStorage
+    try {
+      const currentUserStr = localStorage.getItem('fursure_current_user');
+      if (currentUserStr) {
+        const currentUser = JSON.parse(currentUserStr);
+        const storedUsers = JSON.parse(localStorage.getItem('fursure_users') || '{}');
+        const userKey = currentUser.username || currentUser.email;
+        
+        if (storedUsers[userKey]) {
+          // Split full name into first and last name
+          const nameParts = profile.fullName.trim().split(' ');
+          const firstName = nameParts[0] || '';
+          const lastName = nameParts.slice(1).join(' ') || '';
+          
+          // Update user data
+          storedUsers[userKey] = {
+            ...storedUsers[userKey],
+            firstName,
+            lastName,
+            email: profile.email,
+            phone: profile.phone,
+            address: profile.address,
+            // Keep password unchanged
+          };
+          localStorage.setItem('fursure_users', JSON.stringify(storedUsers));
+          
+          // Also update in Convex backend (if needed)
+          // await updateUserProfile({ ...profile });
+        }
+      }
+      
+      toast.success('Profile updated successfully');
+      setIsEditing(false);
+    } catch (error) {
+      console.error('Error saving profile:', error);
+      toast.error('Failed to save profile. Please try again.');
+    }
   };
 
   return (
@@ -78,7 +147,7 @@ export function OwnerProfileSettings() {
           </div>
         </div>
         <div className="p-6 space-y-6">
-          {/* Name */}
+          {/* Full Name */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               <User className="h-4 w-4 inline mr-2" />
@@ -88,16 +157,16 @@ export function OwnerProfileSettings() {
               <>
                 <input
                   type="text"
-                  value={profile.name}
-                  onChange={(e) => handleChange('name', e.target.value)}
+                  value={profile.fullName}
+                  onChange={(e) => handleChange('fullName', e.target.value)}
                   className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                    errors.name ? 'border-red-500' : 'border-gray-300'
+                    errors.fullName ? 'border-red-500' : 'border-gray-300'
                   }`}
                 />
-                {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name}</p>}
+                {errors.fullName && <p className="text-red-500 text-sm mt-1">{errors.fullName}</p>}
               </>
             ) : (
-              <p className="text-gray-900">{profile.name}</p>
+              <p className="text-gray-900">{profile.fullName || 'Not provided'}</p>
             )}
           </div>
 
@@ -120,7 +189,7 @@ export function OwnerProfileSettings() {
                 {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
               </>
             ) : (
-              <p className="text-gray-900">{profile.email}</p>
+              <p className="text-gray-900">{profile.email || 'Not provided'}</p>
             )}
           </div>
 
@@ -143,7 +212,7 @@ export function OwnerProfileSettings() {
                 {errors.phone && <p className="text-red-500 text-sm mt-1">{errors.phone}</p>}
               </>
             ) : (
-              <p className="text-gray-900">{profile.phone}</p>
+              <p className="text-gray-900">{profile.phone || 'Not provided'}</p>
             )}
           </div>
 
@@ -154,14 +223,19 @@ export function OwnerProfileSettings() {
               Address
             </label>
             {isEditing ? (
-              <textarea
-                value={profile.address}
-                onChange={(e) => handleChange('address', e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                rows={3}
-              />
+              <>
+                <textarea
+                  value={profile.address}
+                  onChange={(e) => handleChange('address', e.target.value)}
+                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    errors.address ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  rows={3}
+                />
+                {errors.address && <p className="text-red-500 text-sm mt-1">{errors.address}</p>}
+              </>
             ) : (
-              <p className="text-gray-900">{profile.address}</p>
+              <p className="text-gray-900">{profile.address || 'Not provided'}</p>
             )}
           </div>
 
@@ -170,7 +244,7 @@ export function OwnerProfileSettings() {
             <div className="flex justify-end gap-3 pt-4 border-t">
               <button
                 onClick={() => {
-                  setProfile(INITIAL_PROFILE);
+                  setProfile(loadUserProfile()); // Reload original data
                   setErrors({});
                   setIsEditing(false);
                 }}

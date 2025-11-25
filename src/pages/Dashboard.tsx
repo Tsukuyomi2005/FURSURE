@@ -58,7 +58,7 @@ export function Dashboard() {
           {hasFullAccess ? (
             <>
               <Stethoscope className="h-8 w-8 text-blue-600" />
-              Veterinary Staff Dashboard
+              Admin Dashboard
             </>
           ) : (
             <>

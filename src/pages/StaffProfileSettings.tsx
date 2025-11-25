@@ -1,20 +1,48 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { User, Mail, Phone, Save, Lock } from 'lucide-react';
 import { toast } from 'sonner';
 
-// For now, using placeholder data. In production, this would come from auth/profile
-const INITIAL_PROFILE = {
-  name: 'Staff Member',
-  email: 'staff@fursure.com',
-  phone: '+63 912 345 6789',
-  position: 'Clinic Staff',
-  employeeId: 'STAFF-12345',
+// Load clinic staff profile from admin-created account
+const loadStaffProfile = () => {
+  try {
+    const currentUserStr = localStorage.getItem('fursure_current_user');
+    if (currentUserStr) {
+      const currentUser = JSON.parse(currentUserStr);
+      const storedUsers = JSON.parse(localStorage.getItem('fursure_users') || '{}');
+      const userData = storedUsers[currentUser.username || currentUser.email];
+      
+      if (userData) {
+        // Combine firstName and lastName into full name
+        const fullName = `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || userData.name || '';
+        
+        return {
+          name: fullName,
+          email: userData.email || '',
+          phone: userData.phone || '',
+        };
+      }
+    }
+  } catch (error) {
+    console.error('Error loading staff profile:', error);
+  }
+  
+  // Return empty profile if no data found
+  return {
+    name: '',
+    email: '',
+    phone: '',
+  };
 };
 
 export function StaffProfileSettings() {
-  const [profile, setProfile] = useState(INITIAL_PROFILE);
+  const [profile, setProfile] = useState(loadStaffProfile());
   const [isEditing, setIsEditing] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Reload profile when component mounts
+  useEffect(() => {
+    setProfile(loadStaffProfile());
+  }, []);
 
   const handleChange = (field: string, value: string) => {
     setProfile(prev => ({ ...prev, [field]: value }));
@@ -27,7 +55,7 @@ export function StaffProfileSettings() {
     const newErrors: Record<string, string> = {};
 
     if (!profile.name.trim()) {
-      newErrors.name = 'Name is required';
+      newErrors.name = 'Full name is required';
     }
 
     if (!profile.email.trim()) {
@@ -50,9 +78,41 @@ export function StaffProfileSettings() {
       return;
     }
 
-    // In production, this would save to the backend
-    toast.success('Profile updated successfully');
-    setIsEditing(false);
+    // Update user data in localStorage
+    try {
+      const currentUserStr = localStorage.getItem('fursure_current_user');
+      if (currentUserStr) {
+        const currentUser = JSON.parse(currentUserStr);
+        const storedUsers = JSON.parse(localStorage.getItem('fursure_users') || '{}');
+        const userKey = currentUser.username || currentUser.email;
+        
+        if (storedUsers[userKey]) {
+          // Split full name into first and last name
+          const nameParts = profile.name.trim().split(' ');
+          const firstName = nameParts[0] || '';
+          const lastName = nameParts.slice(1).join(' ') || '';
+          
+          // Update user data
+          storedUsers[userKey] = {
+            ...storedUsers[userKey],
+            firstName,
+            lastName,
+            email: profile.email,
+            phone: profile.phone,
+          };
+          localStorage.setItem('fursure_users', JSON.stringify(storedUsers));
+          
+          // Also update staff record in Convex (if needed)
+          // await updateStaffProfile({ ...profile });
+        }
+      }
+      
+      toast.success('Profile updated successfully');
+      setIsEditing(false);
+    } catch (error) {
+      console.error('Error saving profile:', error);
+      toast.error('Failed to save profile. Please try again.');
+    }
   };
 
   return (
@@ -148,38 +208,13 @@ export function StaffProfileSettings() {
             )}
           </div>
 
-          {/* Position */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Position
-            </label>
-            {isEditing ? (
-              <input
-                type="text"
-                value={profile.position}
-                onChange={(e) => handleChange('position', e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            ) : (
-              <p className="text-gray-900">{profile.position}</p>
-            )}
-          </div>
-
-          {/* Employee ID */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Employee ID
-            </label>
-            <p className="text-gray-900">{profile.employeeId}</p>
-            <p className="text-sm text-gray-500 mt-1">Employee ID cannot be changed</p>
-          </div>
 
           {/* Action Buttons */}
           {isEditing && (
             <div className="flex justify-end gap-3 pt-4 border-t">
               <button
                 onClick={() => {
-                  setProfile(INITIAL_PROFILE);
+                  setProfile(loadStaffProfile()); // Reload original data
                   setErrors({});
                   setIsEditing(false);
                 }}

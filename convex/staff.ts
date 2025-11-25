@@ -15,6 +15,7 @@ export const list = query({
       email: v.string(),
       phone: v.string(),
       status: v.union(v.literal("active"), v.literal("inactive")),
+      licenseNumber: v.optional(v.string()),
     })
   ),
   handler: async (ctx) => {
@@ -32,6 +33,7 @@ export const add = mutation({
     email: v.string(),
     phone: v.string(),
     status: v.union(v.literal("active"), v.literal("inactive")),
+    licenseNumber: v.optional(v.string()),
   },
   returns: v.id("staff"),
   handler: async (ctx, args) => {
@@ -50,6 +52,7 @@ export const update = mutation({
     email: v.optional(v.string()),
     phone: v.optional(v.string()),
     status: v.optional(v.union(v.literal("active"), v.literal("inactive"))),
+    licenseNumber: v.optional(v.string()),
   },
   returns: v.null(),
   handler: async (ctx, args) => {

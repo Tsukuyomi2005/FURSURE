@@ -1,14 +1,36 @@
-import { useState } from 'react';
-import { Calendar, ChevronLeft, ChevronRight, Clock, User, AlertCircle } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAppointmentStore } from '../stores/appointmentStore';
-import { useRoleStore } from '../stores/roleStore';
+import { useAvailabilityStore } from '../stores/availabilityStore';
+import { useServiceStore } from '../stores/serviceStore';
 
-// For now, using a placeholder vet name. In production, this would come from auth/profile
-const VET_NAME = 'Dr. Smith'; // This should be dynamic based on logged-in vet
+// Get veterinarian's full name from localStorage
+const getVetName = () => {
+  try {
+    const currentUserStr = localStorage.getItem('fursure_current_user');
+    if (currentUserStr) {
+      const currentUser = JSON.parse(currentUserStr);
+      const storedUsers = JSON.parse(localStorage.getItem('fursure_users') || '{}');
+      const userData = storedUsers[currentUser.username || currentUser.email];
+      
+      if (userData) {
+        // Combine firstName and lastName into full name (matching how it's stored in appointments)
+        const fullName = `${userData.firstName || ''} ${userData.lastName || ''}`.trim();
+        return fullName || 'Veterinarian';
+      }
+    }
+  } catch (error) {
+    console.error('Error loading vet name:', error);
+  }
+  return 'Veterinarian'; // Fallback
+};
 
 export function VetMyAppointments() {
   const { appointments } = useAppointmentStore();
-  const { role } = useRoleStore();
+  const { allAvailability } = useAvailabilityStore();
+  const { services } = useServiceStore();
+  
+  const currentVetName = useMemo(() => getVetName(), []);
   
   const [currentWeekStart, setCurrentWeekStart] = useState(() => {
     const today = new Date();
@@ -17,11 +39,31 @@ export function VetMyAppointments() {
     const monday = new Date(today.setDate(diff));
     return monday;
   });
-  
+
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
 
-  // Filter appointments for this veterinarian
-  const vetAppointments = appointments.filter(apt => apt.vet === VET_NAME);
+  // Filter appointments for this veterinarian only
+  const vetAppointments = useMemo(() => {
+    let filtered = appointments.filter(apt => apt.vet === currentVetName);
+    
+    // Apply status filter
+    if (selectedStatus !== 'all') {
+      if (selectedStatus === 'confirmed') {
+        filtered = filtered.filter(apt => apt.status === 'approved');
+      } else if (selectedStatus === 'completed') {
+        filtered = filtered.filter(apt => apt.status === 'rescheduled');
+      } else {
+        filtered = filtered.filter(apt => apt.status === selectedStatus);
+      }
+    }
+    
+    return filtered;
+  }, [appointments, currentVetName, selectedStatus]);
+
+  // Get appointments for weekly schedule (exclude cancelled)
+  const scheduleAppointments = useMemo(() => {
+    return vetAppointments.filter(apt => apt.status !== 'cancelled');
+  }, [vetAppointments]);
 
   // Get week dates
   const getWeekDates = () => {
@@ -44,16 +86,12 @@ export function VetMyAppointments() {
     return `${year}-${month}-${day}`;
   };
 
-  // Get appointments for a specific date
-  const getAppointmentsForDate = (date: Date) => {
+  // Get appointments for a specific date for this veterinarian
+  const getAppointmentsForVetOnDate = (date: Date) => {
     const dateStr = formatDateForComparison(date);
-    let filtered = vetAppointments.filter(apt => apt.date === dateStr);
-    
-    if (selectedStatus !== 'all') {
-      filtered = filtered.filter(apt => apt.status === selectedStatus);
-    }
-    
-    return filtered.sort((a, b) => a.time.localeCompare(b.time));
+    return scheduleAppointments
+      .filter(apt => apt.date === dateStr)
+      .sort((a, b) => a.time.localeCompare(b.time));
   };
 
   // Navigate weeks
@@ -69,22 +107,21 @@ export function VetMyAppointments() {
     setCurrentWeekStart(newDate);
   };
 
-  // Format date display
-  const formatDateDisplay = (date: Date): string => {
-    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    return `${days[date.getDay()]} ${months[date.getMonth()]} ${date.getDate()}`;
+  // Get day name
+  const getDayName = (date: Date): string => {
+    return date.toLocaleDateString('en-US', { weekday: 'long' });
   };
 
-  // Get week range
-  const getWeekRange = () => {
-    const start = weekDates[0];
-    const end = weekDates[6];
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    return `${months[start.getMonth()]} ${start.getDate()}, ${start.getFullYear()} - ${months[end.getMonth()]} ${end.getDate()}, ${end.getFullYear()}`;
+  // Format time to 24-hour format
+  const formatTime24Hour = (time: string): string => {
+    // If already in 24-hour format (HH:MM:SS or HH:MM), return as is
+    if (time.includes(':') && !time.includes('AM') && !time.includes('PM')) {
+      return time.split(':').slice(0, 2).join(':'); // Extract HH:MM if it's HH:MM:SS
+    }
+    return time; // Fallback
   };
 
-  // Format time to 12-hour
+  // Format time to 12-hour format
   const formatTime12Hour = (time24: string): string => {
     const [hours, minutes] = time24.split(':').map(Number);
     const period = hours >= 12 ? 'PM' : 'AM';
@@ -92,80 +129,77 @@ export function VetMyAppointments() {
     return `${hours12}:${minutes.toString().padStart(2, '0')} ${period}`;
   };
 
-  // Get status color
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'pending': return 'bg-yellow-100 text-yellow-800 border-yellow-300';
-      case 'approved': return 'bg-green-100 text-green-800 border-green-300';
-      case 'cancelled': return 'bg-red-100 text-red-800 border-red-300';
-      case 'rescheduled': return 'bg-blue-100 text-blue-800 border-blue-300';
-      default: return 'bg-gray-100 text-gray-800 border-gray-300';
-    }
+  // Get service name from service ID
+  const getServiceName = (serviceId: string | undefined): string => {
+    if (!serviceId) return '';
+    const service = services.find(s => s.id === serviceId);
+    return service ? service.name : serviceId; // Fallback to ID if service not found
   };
 
-  // Get status label
-  const getStatusLabel = (status: string) => {
-    switch (status) {
-      case 'pending': return 'Pending';
-      case 'approved': return 'Confirmed';
-      case 'cancelled': return 'Cancelled';
-      case 'rescheduled': return 'Completed';
-      default: return status;
-    }
+  // Get availability for this veterinarian
+  const getAvailabilityForVet = () => {
+    return allAvailability.find(av => av.veterinarianName === currentVetName);
   };
 
-  // Count appointments by status
+  const vetAvailability = getAvailabilityForVet();
+
+  // Get status counts
   const getStatusCounts = () => {
+    const allVetAppointments = appointments.filter(apt => apt.vet === currentVetName);
     return {
-      pending: vetAppointments.filter(a => a.status === 'pending').length,
-      approved: vetAppointments.filter(a => a.status === 'approved').length,
-      cancelled: vetAppointments.filter(a => a.status === 'cancelled').length,
-      rescheduled: vetAppointments.filter(a => a.status === 'rescheduled').length,
+      pending: allVetAppointments.filter(a => a.status === 'pending').length,
+      confirmed: allVetAppointments.filter(a => a.status === 'approved').length,
+      completed: allVetAppointments.filter(a => a.status === 'rescheduled').length,
+      cancelled: allVetAppointments.filter(a => a.status === 'cancelled').length,
     };
   };
 
   const statusCounts = getStatusCounts();
 
+  // Get pending appointments for the table
+  const pendingAppointments = useMemo(() => {
+    return appointments
+      .filter(apt => apt.vet === currentVetName && apt.status === 'pending')
+      .sort((a, b) => {
+        const dateCompare = a.date.localeCompare(b.date);
+        if (dateCompare !== 0) return dateCompare;
+        return a.time.localeCompare(b.time);
+      });
+  }, [appointments, currentVetName]);
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">My Schedule</h1>
-        <p className="text-gray-600 mt-2">Manage your appointments and availability</p>
+        <h1 className="text-3xl font-bold text-gray-900">My Appointments</h1>
+        <p className="text-gray-600 mt-2">View your weekly schedule and appointments</p>
       </div>
 
-      {/* Weekly Schedule Section */}
-      <div className="bg-white rounded-lg shadow-sm border p-6">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h2 className="text-xl font-bold text-gray-900 mb-2">Weekly Schedule</h2>
-            <p className="text-gray-600">{getWeekRange()}</p>
+      {/* Weekly Schedule */}
+      <div className="bg-white rounded-lg shadow-sm border">
+        <div className="p-6 border-b">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-gray-900">Weekly Schedule</h2>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={goToPreviousWeek}
+                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2"
+              >
+                <ChevronLeft className="h-5 w-5" />
+                Previous Week
+              </button>
+              <button
+                onClick={goToNextWeek}
+                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2"
+              >
+                Next Week
+                <ChevronRight className="h-5 w-5" />
+              </button>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={goToPreviousWeek}
-              className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              <ChevronLeft className="h-5 w-5" />
-            </button>
-            <button
-              onClick={goToNextWeek}
-              className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              <ChevronRight className="h-5 w-5" />
-            </button>
-          </div>
-        </div>
-
-        {/* Weekly Overview */}
-        <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
-          <div className="flex items-center gap-2 mb-4">
-            <Calendar className="h-5 w-5 text-gray-600" />
-            <h3 className="text-lg font-semibold text-gray-900">Weekly Overview</h3>
-          </div>
-
+          
           {/* Status Filters */}
-          <div className="flex flex-wrap gap-3 mb-6">
+          <div className="flex flex-wrap gap-3 mt-4">
             <button
               onClick={() => setSelectedStatus('all')}
               className={`px-4 py-2 rounded-lg font-medium transition-colors ${
@@ -187,24 +221,24 @@ export function VetMyAppointments() {
               Pending ({statusCounts.pending})
             </button>
             <button
-              onClick={() => setSelectedStatus('approved')}
+              onClick={() => setSelectedStatus('confirmed')}
               className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                selectedStatus === 'approved'
+                selectedStatus === 'confirmed'
                   ? 'bg-green-500 text-white'
                   : 'bg-green-100 text-green-800 hover:bg-green-200'
               }`}
             >
-              Confirmed ({statusCounts.approved})
+              Confirmed ({statusCounts.confirmed})
             </button>
             <button
-              onClick={() => setSelectedStatus('rescheduled')}
+              onClick={() => setSelectedStatus('completed')}
               className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                selectedStatus === 'rescheduled'
+                selectedStatus === 'completed'
                   ? 'bg-blue-500 text-white'
                   : 'bg-blue-100 text-blue-800 hover:bg-blue-200'
               }`}
             >
-              Completed ({statusCounts.rescheduled})
+              Completed ({statusCounts.completed})
             </button>
             <button
               onClick={() => setSelectedStatus('cancelled')}
@@ -217,88 +251,137 @@ export function VetMyAppointments() {
               Cancelled ({statusCounts.cancelled})
             </button>
           </div>
-
-          {/* Calendar Grid */}
-          <div className="grid grid-cols-7 gap-2">
-            {weekDates.map((date, index) => {
-              const dayAppointments = getAppointmentsForDate(date);
-              const isToday = formatDateForComparison(date) === formatDateForComparison(new Date());
-              
-              return (
-                <div
-                  key={index}
-                  className={`min-h-[120px] p-2 border rounded-lg ${
-                    isToday ? 'border-blue-400 bg-blue-50' : 'border-gray-200'
-                  }`}
-                >
-                  <div className="text-sm font-medium text-gray-700 mb-2">
-                    {formatDateDisplay(date)}
-                  </div>
-                  <div className="space-y-2">
-                    {dayAppointments.map((apt) => (
-                      <div
-                        key={apt.id}
-                        className={`p-2 rounded border text-xs ${getStatusColor(apt.status)}`}
-                      >
-                        <div className="font-medium">{formatTime12Hour(apt.time)}</div>
-                        <div className="mt-1 truncate">{apt.ownerName}</div>
-                        <div className="text-xs opacity-75 truncate">{apt.petName}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
         </div>
-
-        {/* Pending Appointments List */}
-        {selectedStatus === 'all' || selectedStatus === 'pending' ? (
-          <div className="mt-6">
-            <div className="flex items-center gap-2 mb-4">
-              <Clock className="h-5 w-5 text-gray-600" />
-              <h3 className="text-lg font-semibold text-gray-900">Pending Appointments</h3>
-            </div>
-            <div className="space-y-2">
-              {vetAppointments
-                .filter(apt => apt.status === 'pending')
-                .sort((a, b) => {
-                  const dateCompare = a.date.localeCompare(b.date);
-                  if (dateCompare !== 0) return dateCompare;
-                  return a.time.localeCompare(b.time);
-                })
-                .map((apt) => (
-                  <div
-                    key={apt.id}
-                    className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg flex items-center justify-between"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="text-sm font-medium text-gray-900">
-                        {new Date(apt.date).toLocaleDateString('en-US', {
-                          month: 'short',
-                          day: 'numeric',
-                          year: 'numeric'
-                        })} {formatTime12Hour(apt.time)}
-                      </div>
-                      <div className="text-sm text-gray-700">{apt.ownerName}</div>
-                      <div className="text-sm text-gray-600">{apt.petName}</div>
+        <div className="p-6 overflow-x-auto">
+          <table className="w-full min-w-[700px]">
+            <thead>
+              <tr>
+                {weekDates.map((date, index) => (
+                  <th key={index} className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-b">
+                    <div>{getDayName(date).substring(0, 3)}</div>
+                    <div className="text-gray-900 font-normal mt-1">
+                      {date.getDate()} {date.toLocaleDateString('en-US', { month: 'short' })}
                     </div>
-                    <span className="px-2 py-1 text-xs font-medium rounded bg-yellow-100 text-yellow-800">
-                      Pending
-                    </span>
-                  </div>
+                  </th>
                 ))}
-              {vetAppointments.filter(apt => apt.status === 'pending').length === 0 && (
-                <div className="text-center py-8 text-gray-500">
-                  <AlertCircle className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  <p>No pending appointments</p>
-                </div>
-              )}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              <tr>
+                {weekDates.map((date, dayIndex) => {
+                  const dayName = getDayName(date);
+                  const isWorkingDay = vetAvailability?.workingDays.includes(dayName) || false;
+                  const dayAppointments = getAppointmentsForVetOnDate(date);
+                  const appointmentCount = dayAppointments.length;
+                  
+                  return (
+                    <td key={dayIndex} className="px-2 py-4 align-top relative min-w-[100px]">
+                      <div className="space-y-1 pt-1">
+                        {appointmentCount > 0 && (
+                          <div className="absolute top-1 left-1 w-5 h-5 rounded-full bg-blue-500 text-white text-[10px] font-semibold flex items-center justify-center z-10 shadow-sm">
+                            {appointmentCount}
+                          </div>
+                        )}
+                        {dayAppointments.map((apt) => (
+                          <div
+                            key={apt.id}
+                            className="bg-green-50 border border-green-200 rounded p-2 text-xs hover:bg-green-100 transition-colors cursor-pointer"
+                          >
+                            <div className="font-medium text-gray-900">
+                              {formatTime24Hour(apt.time)}
+                              {apt.serviceType && (
+                                <span className="text-gray-700 ml-1">- {getServiceName(apt.serviceType)}</span>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                        {appointmentCount === 0 && (
+                          <div className="text-xs text-gray-400 text-center py-2">
+                            {isWorkingDay && vetAvailability ? (
+                              <div className="flex flex-col items-center">
+                                <span className="font-medium">Available</span>
+                              </div>
+                            ) : 'Off'}
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                  );
+                })}
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Pending Appointments Table */}
+      <div className="bg-white rounded-lg shadow-sm border">
+        <div className="p-6 border-b">
+          <h2 className="text-lg font-semibold text-gray-900">Pending Appointments</h2>
+        </div>
+        <div className="p-6 overflow-x-auto">
+          {pendingAppointments.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              <p>No pending appointments</p>
             </div>
-          </div>
-        ) : null}
+          ) : (
+            <table className="w-full min-w-[800px]">
+              <thead>
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">
+                    Date
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">
+                    Time
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">
+                    Owner Name
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">
+                    Pet Name
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">
+                    Service
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">
+                    Status
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {pendingAppointments.map((apt) => (
+                  <tr key={apt.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {new Date(apt.date).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric'
+                      })}
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {formatTime12Hour(formatTime24Hour(apt.time))}
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {apt.ownerName}
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {apt.petName}
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {apt.serviceType ? getServiceName(apt.serviceType) : 'N/A'}
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap">
+                      <span className="px-2 py-1 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800">
+                        Pending
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
       </div>
     </div>
   );
 }
-

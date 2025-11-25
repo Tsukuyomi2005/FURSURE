@@ -1,20 +1,53 @@
-import { useState } from 'react';
-import { User, Mail, Phone, Save, Lock } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { User, Mail, Phone, Save, Lock, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 
-// For now, using placeholder data. In production, this would come from auth/profile
-const INITIAL_PROFILE = {
-  name: 'Dr. Smith',
-  email: 'dr.smith@fursure.com',
-  phone: '+63 912 345 6789',
-  specialization: 'General Practice',
-  licenseNumber: 'VET-12345',
+// Load veterinarian profile from admin-created account
+const loadVetProfile = () => {
+  try {
+    const currentUserStr = localStorage.getItem('fursure_current_user');
+    if (currentUserStr) {
+      const currentUser = JSON.parse(currentUserStr);
+      const storedUsers = JSON.parse(localStorage.getItem('fursure_users') || '{}');
+      const userData = storedUsers[currentUser.username || currentUser.email];
+      
+      if (userData) {
+        // Combine firstName and lastName into full name
+        const fullName = `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || userData.name || '';
+        
+        // Get license number - should be stored when admin creates veterinarian account
+        const licenseNumber = userData.licenseNumber || '';
+        
+        return {
+          name: fullName,
+          email: userData.email || '',
+          phone: userData.phone || '',
+          licenseNumber: licenseNumber,
+        };
+      }
+    }
+  } catch (error) {
+    console.error('Error loading vet profile:', error);
+  }
+  
+  // Return empty profile if no data found
+  return {
+    name: '',
+    email: '',
+    phone: '',
+    licenseNumber: '',
+  };
 };
 
 export function VetProfileSettings() {
-  const [profile, setProfile] = useState(INITIAL_PROFILE);
+  const [profile, setProfile] = useState(loadVetProfile());
   const [isEditing, setIsEditing] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Reload profile when component mounts
+  useEffect(() => {
+    setProfile(loadVetProfile());
+  }, []);
 
   const handleChange = (field: string, value: string) => {
     setProfile(prev => ({ ...prev, [field]: value }));
@@ -27,7 +60,7 @@ export function VetProfileSettings() {
     const newErrors: Record<string, string> = {};
 
     if (!profile.name.trim()) {
-      newErrors.name = 'Name is required';
+      newErrors.name = 'Full name is required';
     }
 
     if (!profile.email.trim()) {
@@ -50,9 +83,42 @@ export function VetProfileSettings() {
       return;
     }
 
-    // In production, this would save to the backend
-    toast.success('Profile updated successfully');
-    setIsEditing(false);
+    // Update user data in localStorage
+    try {
+      const currentUserStr = localStorage.getItem('fursure_current_user');
+      if (currentUserStr) {
+        const currentUser = JSON.parse(currentUserStr);
+        const storedUsers = JSON.parse(localStorage.getItem('fursure_users') || '{}');
+        const userKey = currentUser.username || currentUser.email;
+        
+        if (storedUsers[userKey]) {
+          // Split full name into first and last name
+          const nameParts = profile.name.trim().split(' ');
+          const firstName = nameParts[0] || '';
+          const lastName = nameParts.slice(1).join(' ') || '';
+          
+          // Update user data
+          storedUsers[userKey] = {
+            ...storedUsers[userKey],
+            firstName,
+            lastName,
+            email: profile.email,
+            phone: profile.phone,
+            // License number cannot be changed
+          };
+          localStorage.setItem('fursure_users', JSON.stringify(storedUsers));
+          
+          // Also update staff record in Convex (if needed)
+          // await updateStaffProfile({ ...profile });
+        }
+      }
+      
+      toast.success('Profile updated successfully');
+      setIsEditing(false);
+    } catch (error) {
+      console.error('Error saving profile:', error);
+      toast.error('Failed to save profile. Please try again.');
+    }
   };
 
   return (
@@ -148,29 +214,13 @@ export function VetProfileSettings() {
             )}
           </div>
 
-          {/* Specialization */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Specialization
-            </label>
-            {isEditing ? (
-              <input
-                type="text"
-                value={profile.specialization}
-                onChange={(e) => handleChange('specialization', e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            ) : (
-              <p className="text-gray-900">{profile.specialization}</p>
-            )}
-          </div>
-
           {/* License Number */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
+              <FileText className="h-4 w-4 inline mr-2" />
               License Number
             </label>
-            <p className="text-gray-900">{profile.licenseNumber}</p>
+            <p className="text-gray-900">{profile.licenseNumber || 'Not provided'}</p>
             <p className="text-sm text-gray-500 mt-1">License number cannot be changed</p>
           </div>
 
@@ -179,7 +229,7 @@ export function VetProfileSettings() {
             <div className="flex justify-end gap-3 pt-4 border-t">
               <button
                 onClick={() => {
-                  setProfile(INITIAL_PROFILE);
+                  setProfile(loadVetProfile()); // Reload original data
                   setErrors({});
                   setIsEditing(false);
                 }}

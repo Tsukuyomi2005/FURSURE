@@ -58,6 +58,7 @@ const applicationTables = {
     email: v.string(),
     phone: v.string(),
     status: v.union(v.literal("active"), v.literal("inactive")),
+    licenseNumber: v.optional(v.string()), // License number for veterinarians
   }),
   availability: defineTable({
     veterinarianName: v.string(),
@@ -67,6 +68,23 @@ const applicationTables = {
     appointmentDuration: v.number(),
     breakTime: v.number(),
   }).index("by_veterinarian", ["veterinarianName"]),
+  users: defineTable({
+    username: v.string(),
+    email: v.string(),
+    firstName: v.optional(v.string()),
+    lastName: v.optional(v.string()),
+    phone: v.optional(v.string()),
+    address: v.optional(v.string()),
+    role: v.union(
+      v.literal("owner"),
+      v.literal("vet"),
+      v.literal("veterinarian"),
+      v.literal("clinicStaff")
+    ),
+    staffId: v.optional(v.id("staff")), // Link to staff table if applicable
+  })
+    .index("by_username", ["username"])
+    .index("by_email", ["email"]),
 };
 
 export default defineSchema({

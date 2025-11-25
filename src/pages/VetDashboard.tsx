@@ -1,16 +1,36 @@
 import { Calendar, Clock, Users, TrendingUp, AlertCircle, CheckCircle } from 'lucide-react';
 import { useAppointmentStore } from '../stores/appointmentStore';
 import { useRoleStore } from '../stores/roleStore';
-
-// For now, using a placeholder vet name. In production, this would come from auth/profile
-const VET_NAME = 'Dr. Smith'; // This should be dynamic based on logged-in vet
+import { useState, useEffect } from 'react';
 
 export function VetDashboard() {
   const { appointments } = useAppointmentStore();
   const { role } = useRoleStore();
+  const [vetLastName, setVetLastName] = useState<string>('');
 
+  // Load veterinarian's last name from profile
+  useEffect(() => {
+    try {
+      const currentUserStr = localStorage.getItem('fursure_current_user');
+      if (currentUserStr) {
+        const currentUser = JSON.parse(currentUserStr);
+        const storedUsers = JSON.parse(localStorage.getItem('fursure_users') || '{}');
+        const userData = storedUsers[currentUser.username || currentUser.email];
+        
+        if (userData && userData.lastName) {
+          setVetLastName(userData.lastName);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading veterinarian name:', error);
+    }
+  }, []);
+
+  // Get vet name for filtering appointments (use full name or last name)
+  const vetName = vetLastName ? `Dr. ${vetLastName}` : 'Dr. Smith';
+  
   // Filter appointments for this veterinarian
-  const vetAppointments = appointments.filter(apt => apt.vet === VET_NAME);
+  const vetAppointments = appointments.filter(apt => apt.vet === vetName || apt.vet.includes(vetLastName || 'Smith'));
 
   // Calculate statistics
   const today = new Date().toISOString().split('T')[0];
@@ -46,7 +66,7 @@ export function VetDashboard() {
       {/* Header */}
       <div>
         <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-gray-600 mt-2">Welcome back, {VET_NAME}</p>
+        <p className="text-gray-600 mt-2">{vetLastName || 'Veterinarian'}</p>
       </div>
 
       {/* Statistics Cards */}

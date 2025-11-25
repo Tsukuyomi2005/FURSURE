@@ -11,11 +11,13 @@ import {
   XCircle
 } from 'lucide-react';
 import { useAppointmentStore } from '../stores/appointmentStore';
+import { useServiceStore } from '../stores/serviceStore';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { toast } from 'sonner';
 import type { Appointment } from '../types';
 
-const services: Record<string, string> = {
+// Legacy service mapping for backward compatibility with old appointment data
+const legacyServices: Record<string, string> = {
   'vaccination-deworming': 'Vaccination & Deworming',
   'surgery': 'Surgery',
   'consultation-treatment': 'Consultation Treatment & Confinement',
@@ -77,6 +79,7 @@ const isCompleted = (appointment: Appointment): boolean => {
 
 export function MyAppointments() {
   const { appointments, updateAppointment } = useAppointmentStore();
+  const { services } = useServiceStore();
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [dateRangeFilter, setDateRangeFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -84,6 +87,17 @@ export function MyAppointments() {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [appointmentToCancel, setAppointmentToCancel] = useState<Appointment | null>(null);
+  
+  // Get service name from service ID
+  const getServiceName = (serviceId: string | undefined): string => {
+    if (!serviceId) return 'N/A';
+    const service = services.find(s => s.id === serviceId);
+    if (service) return service.name;
+    // Check legacy mapping for backward compatibility
+    if (legacyServices[serviceId]) return legacyServices[serviceId];
+    // Fallback to ID if service not found
+    return serviceId;
+  };
 
   // Filter appointments (for pet owners, show all appointments - in real app, filter by logged-in user)
   const filteredAppointments = useMemo(() => {
@@ -130,7 +144,7 @@ export function MyAppointments() {
       filtered = filtered.filter(apt => 
         apt.petName.toLowerCase().includes(query) ||
         apt.vet.toLowerCase().includes(query) ||
-        (apt.serviceType && services[apt.serviceType]?.toLowerCase().includes(query)) ||
+        (apt.serviceType && getServiceName(apt.serviceType).toLowerCase().includes(query)) ||
         apt.id.toLowerCase().includes(query)
       );
     }
@@ -372,7 +386,7 @@ export function MyAppointments() {
                       {generateAppointmentId(appointment.id)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {appointment.serviceType ? services[appointment.serviceType] || appointment.serviceType : 'N/A'}
+                      {appointment.serviceType ? getServiceName(appointment.serviceType) : 'N/A'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       <div className="flex items-center gap-2">
@@ -449,7 +463,7 @@ export function MyAppointments() {
                   <div>
                     <p className="text-sm text-gray-600">Service</p>
                     <p className="font-medium text-gray-900">
-                      {selectedAppointment.serviceType ? services[selectedAppointment.serviceType] || selectedAppointment.serviceType : 'N/A'}
+                      {selectedAppointment.serviceType ? getServiceName(selectedAppointment.serviceType) : 'N/A'}
                     </p>
                   </div>
                   <div>

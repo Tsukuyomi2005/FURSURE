@@ -28,7 +28,7 @@ export function Layout({ children }: LayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-  const { role, setRole } = useRoleStore();
+  const { role, setRole, clearRole } = useRoleStore();
 
   const hasFullAccess = role === 'vet' || role === 'staff';
   const isVeterinarian = role === 'veterinarian';
@@ -74,8 +74,12 @@ export function Layout({ children }: LayoutProps) {
   };
 
   const handleLogout = () => {
-    setRole('owner'); // Reset to default
-    navigate('/');
+    // Clear stored user session
+    localStorage.removeItem('fursure_current_user');
+    // Clear role from store
+    clearRole();
+    // Navigate to login page
+    navigate('/login');
   };
 
   return (
@@ -123,7 +127,7 @@ export function Layout({ children }: LayoutProps) {
               className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-white hover:bg-white/10 w-full transition-colors"
             >
               <LogOut className="h-5 w-5" />
-              Switch Interface
+              Logout
             </button>
           </div>
         </div>
@@ -160,7 +164,7 @@ export function Layout({ children }: LayoutProps) {
               className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-white hover:bg-white/10 w-full transition-colors"
             >
               <LogOut className="h-5 w-5" />
-              Switch Interface
+              Logout
             </button>
           </div>
       </div>
@@ -181,7 +185,7 @@ export function Layout({ children }: LayoutProps) {
               "px-3 py-1 rounded-full text-xs font-medium capitalize",
               getRoleBadgeColor()
             )}>
-              {role === 'vet' ? 'Veterinary Staff' : role === 'staff' ? 'Staff Member' : role === 'veterinarian' ? 'Veterinarian' : role === 'clinicStaff' ? 'Clinic Staff' : 'Pet Owner'}
+              {role === 'vet' ? 'Admin' : role === 'staff' ? 'Staff Member' : role === 'veterinarian' ? 'Veterinarian' : role === 'clinicStaff' ? 'Clinic Staff' : role === 'owner' ? 'Pet Owner' : 'Guest'}
             </span>
           </div>
         </header>

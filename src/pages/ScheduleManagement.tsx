@@ -1,13 +1,48 @@
-import { useState } from 'react';
-import { Filter, ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { Filter, ChevronLeft, ChevronRight, Calendar, Clock } from 'lucide-react';
 import { useAvailabilityStore } from '../stores/availabilityStore';
 import { useStaffStore } from '../stores/staffStore';
 import { useAppointmentStore } from '../stores/appointmentStore';
+import { useServiceStore } from '../stores/serviceStore';
+import { useRoleStore } from '../stores/roleStore';
+
+// Get veterinarian's full name from localStorage
+const getVetName = () => {
+  try {
+    const currentUserStr = localStorage.getItem('fursure_current_user');
+    if (currentUserStr) {
+      const currentUser = JSON.parse(currentUserStr);
+      const storedUsers = JSON.parse(localStorage.getItem('fursure_users') || '{}');
+      const userData = storedUsers[currentUser.username || currentUser.email];
+      
+      if (userData) {
+        // Combine firstName and lastName into full name (matching how it's stored in staff table)
+        const fullName = `${userData.firstName || ''} ${userData.lastName || ''}`.trim();
+        return fullName || 'Veterinarian';
+      }
+    }
+  } catch (error) {
+    console.error('Error loading vet name:', error);
+  }
+  return 'Veterinarian'; // Fallback
+};
 
 export function ScheduleManagement() {
   const { allAvailability } = useAvailabilityStore();
   const { staff } = useStaffStore();
   const { appointments } = useAppointmentStore();
+  const { services } = useServiceStore();
+  const { role } = useRoleStore();
+  
+  const isVeterinarian = role === 'veterinarian';
+  const currentVetName = useMemo(() => isVeterinarian ? getVetName() : null, [isVeterinarian]);
+  
+  // Get service name from service ID
+  const getServiceName = (serviceId: string | undefined): string => {
+    if (!serviceId) return '';
+    const service = services.find(s => s.id === serviceId);
+    return service ? service.name : serviceId; // Fallback to ID if service not found
+  };
   const [filterStaff, setFilterStaff] = useState<string>('all');
   const [filterPosition, setFilterPosition] = useState<string>('all');
   const [filterDateRange, setFilterDateRange] = useState<string>('this-week');
@@ -21,8 +56,13 @@ export function ScheduleManagement() {
   });
   const [showFilters, setShowFilters] = useState(false);
 
-  // Get veterinarians from staff
+  // Get all active staff (both veterinarians and clinic staff)
+  // For veterinarians, only show their own schedule
+  const allActiveStaff = isVeterinarian && currentVetName
+    ? staff.filter(s => s.status === 'active' && s.name === currentVetName)
+    : staff.filter(s => s.status === 'active');
   const veterinarians = staff.filter(s => s.position === 'Veterinarian' && s.status === 'active');
+  const clinicStaff = staff.filter(s => s.position === 'Vet Staff' && s.status === 'active');
 
   // Get week dates
   const getWeekDates = () => {
@@ -54,7 +94,16 @@ export function ScheduleManagement() {
   // Get appointments for a vet on a specific date
   const getAppointmentsForVetOnDate = (vetName: string, date: Date) => {
     const dateStr = formatDateForComparison(date);
-    return appointments.filter(apt => apt.vet === vetName && apt.date === dateStr);
+    return appointments.filter(apt => {
+      // Match vet name exactly (case-sensitive) and date, exclude cancelled appointments
+      return apt.vet === vetName && apt.date === dateStr && apt.status !== 'cancelled';
+    });
+  };
+
+  // Get availability for a staff member by name
+  const getAvailabilityForStaff = (staffName: string) => {
+    // Match staff name exactly with availability veterinarianName (works for both vets and clinic staff)
+    return allAvailability.find(av => av.veterinarianName === staffName);
   };
 
   // Generate time slots based on availability
@@ -83,12 +132,23 @@ export function ScheduleManagement() {
     return slots;
   };
 
-  // Filter veterinarians
-  const filteredVets = veterinarians.filter(vet => {
-    if (filterStaff !== 'all' && vet.name !== filterStaff) return false;
-    if (filterPosition !== 'all' && vet.position !== filterPosition) return false;
-    return true;
-  });
+  // Filter staff (combine veterinarians and clinic staff)
+  // For veterinarians, automatically filter to their own schedule
+  const filteredStaff = useMemo(() => {
+    if (isVeterinarian && currentVetName) {
+      // For veterinarians, only show their own schedule
+      return allActiveStaff.filter(member => member.name === currentVetName);
+    }
+    // For admin, apply filters
+    return allActiveStaff.filter(member => {
+      if (filterStaff !== 'all' && member.name !== filterStaff) return false;
+      if (filterPosition !== 'all') {
+        const positionMatch = filterPosition === 'Veterinarian' ? member.position === 'Veterinarian' : member.position === 'Vet Staff';
+        if (!positionMatch) return false;
+      }
+      return true;
+    });
+  }, [allActiveStaff, isVeterinarian, currentVetName, filterStaff, filterPosition]);
 
   // Navigate weeks
   const goToPreviousWeek = () => {
@@ -118,6 +178,12 @@ export function ScheduleManagement() {
     return `${hours12}:${minutes.toString().padStart(2, '0')} ${period}`;
   };
 
+  const formatTime24Hour = (time24: string): string => {
+    // Format as HH:MM:00 to match reference style
+    const [hours, minutes] = time24.split(':').map(Number);
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`;
+  };
+
   const handleResetFilters = () => {
     setFilterStaff('all');
     setFilterPosition('all');
@@ -130,20 +196,26 @@ export function ScheduleManagement() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Staff Schedules</h1>
-          <p className="text-gray-600 mt-2">Manage and view staff schedules</p>
+          <h1 className="text-3xl font-bold text-gray-900">
+            {isVeterinarian ? 'My Weekly Schedule' : 'Staff Schedules'}
+          </h1>
+          <p className="text-gray-600 mt-2">
+            {isVeterinarian ? 'View your weekly schedule and appointments' : 'Manage and view staff schedules'}
+          </p>
         </div>
-        <button
-          onClick={() => setShowFilters(!showFilters)}
-          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          <Filter className="h-4 w-4" />
-          Filter
-        </button>
+        {!isVeterinarian && (
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <Filter className="h-4 w-4" />
+            Filter
+          </button>
+        )}
       </div>
 
-      {/* Filter Panel */}
-      {showFilters && (
+      {/* Filter Panel (Only for admin) */}
+      {!isVeterinarian && showFilters && (
         <div className="bg-white rounded-lg shadow-sm border p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Filter Schedules</h2>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -155,8 +227,8 @@ export function ScheduleManagement() {
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="all">All Staff</option>
-                {veterinarians.map(vet => (
-                  <option key={vet.id} value={vet.name}>{vet.name}</option>
+                {allActiveStaff.map(member => (
+                  <option key={member.id} value={member.name}>{member.name}</option>
                 ))}
               </select>
             </div>
@@ -167,9 +239,9 @@ export function ScheduleManagement() {
                 onChange={(e) => setFilterPosition(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
-                <option value="all">All Positions</option>
-                <option value="Veterinarian">Veterinarian</option>
-                <option value="Vet Staff">Vet Staff</option>
+              <option value="all">All Positions</option>
+              <option value="Veterinarian">Veterinarian</option>
+              <option value="Vet Staff">Clinic Staff</option>
               </select>
             </div>
             <div>
@@ -256,70 +328,88 @@ export function ScheduleManagement() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {filteredVets.map((vet) => {
-                const vetAvailability = allAvailability.find(av => av.veterinarianName === vet.name);
+              {filteredStaff.map((member) => {
+                const isVeterinarian = member.position === 'Veterinarian';
+                const staffAvailability = getAvailabilityForStaff(member.name);
+                
                 return (
-                  <tr key={vet.id} className="hover:bg-gray-50">
+                  <tr key={member.id} className="hover:bg-gray-50">
                     <td className="px-4 py-4 whitespace-nowrap">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
-                          <span className="text-blue-600 font-medium text-sm">
-                            {vet.name.split(' ').map(n => n[0]).join('')}
-                          </span>
-                        </div>
-                        <div>
-                          <div className="font-medium text-gray-900">{vet.name}</div>
-                          <div className="text-sm text-gray-500">{vet.position}</div>
-                        </div>
+                      <div className="flex flex-col">
+                        <div className="font-medium text-gray-900">{member.name}</div>
+                        <div className="text-sm text-gray-500">{isVeterinarian ? 'Veterinarian' : 'Clinic Staff'}</div>
                       </div>
                     </td>
                     {weekDates.map((date, dayIndex) => {
                       const dayName = getDayName(date);
-                      const isWorkingDay = vetAvailability?.workingDays.includes(dayName);
-                      const dayAppointments = getAppointmentsForVetOnDate(vet.name, date);
+                      const isWorkingDay = staffAvailability?.workingDays.includes(dayName);
                       
-                      return (
-                        <td key={dayIndex} className="px-2 py-4 align-top">
-                          {isWorkingDay ? (
-                            <div className="space-y-1">
-                              {dayAppointments.map((apt, aptIndex) => (
-                                <div
-                                  key={apt.id}
-                                  className="bg-green-100 border border-green-300 rounded p-2 text-xs"
-                                >
-                                  <div className="flex items-center gap-1 mb-1">
-                                    <div className="w-4 h-4 rounded-full bg-blue-500 text-white text-[10px] flex items-center justify-center">
-                                      {aptIndex + 1}
-                                    </div>
-                                    <span className="font-medium">{formatTime12Hour(apt.time)}</span>
-                                  </div>
-                                  <div className="text-gray-700 truncate">{apt.petName}</div>
-                                  {apt.serviceType && (
-                                    <div className="text-gray-600 text-[10px] truncate">{apt.serviceType}</div>
-                                  )}
+                      if (isVeterinarian) {
+                        // For veterinarians: show appointments (always show appointments, regardless of working day)
+                        const dayAppointments = getAppointmentsForVetOnDate(member.name, date);
+                        const appointmentCount = dayAppointments.length;
+                        
+                        return (
+                          <td key={dayIndex} className="px-2 py-4 align-top relative min-w-[120px]">
+                            <div className="space-y-1 pt-1">
+                              {appointmentCount > 0 && (
+                                <div className="absolute top-1 left-1 w-5 h-5 rounded-full bg-blue-500 text-white text-[10px] font-semibold flex items-center justify-center z-10 shadow-sm">
+                                  {appointmentCount}
                                 </div>
-                              ))}
-                              {dayAppointments.length === 0 && (
+                              )}
+                              {dayAppointments
+                                .sort((a, b) => a.time.localeCompare(b.time))
+                                .map((apt) => (
+                                  <div
+                                    key={apt.id}
+                                    className="bg-green-50 border border-green-200 rounded p-2 text-xs hover:bg-green-100 transition-colors cursor-pointer"
+                                  >
+                                    <div className="font-medium text-gray-900">
+                                      {formatTime24Hour(apt.time)}
+                                      {apt.serviceType && (
+                                        <span className="text-gray-700 ml-1">- {getServiceName(apt.serviceType)}</span>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
+                              {appointmentCount === 0 && (
                                 <div className="text-xs text-gray-400 text-center py-2">
-                                  Available
+                                  {isWorkingDay ? 'Available' : 'Off'}
                                 </div>
                               )}
                             </div>
-                          ) : (
-                            <div className="text-xs text-gray-400 text-center py-2">Off</div>
-                          )}
-                        </td>
-                      );
+                          </td>
+                        );
+                      } else {
+                        // For clinic staff: show working hours
+                        return (
+                          <td key={dayIndex} className="px-2 py-4 align-top">
+                            {isWorkingDay && staffAvailability ? (
+                              <div className="text-xs text-gray-700">
+                                <div className="font-medium">
+                                  {formatTime12Hour(staffAvailability.startTime)}
+                                </div>
+                                <div className="text-gray-500 text-[10px]">to</div>
+                                <div className="font-medium">
+                                  {formatTime12Hour(staffAvailability.endTime)}
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="text-xs text-gray-400 text-center py-2">Off</div>
+                            )}
+                          </td>
+                        );
+                      }
                     })}
                   </tr>
                 );
               })}
             </tbody>
           </table>
-          {filteredVets.length === 0 && (
+          {filteredStaff.length === 0 && (
             <div className="text-center py-12">
               <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-500">No veterinarians found</p>
+              <p className="text-gray-500">No staff members found</p>
             </div>
           )}
         </div>

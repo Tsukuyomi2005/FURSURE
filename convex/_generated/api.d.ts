@@ -17,6 +17,7 @@ import type * as router from "../router.js";
 import type * as schedules from "../schedules.js";
 import type * as services from "../services.js";
 import type * as staff from "../staff.js";
+import type * as users from "../users.js";
 
 import type {
   ApiFromModules,
@@ -42,6 +43,7 @@ declare const fullApi: ApiFromModules<{
   schedules: typeof schedules;
   services: typeof services;
   staff: typeof staff;
+  users: typeof users;
 }>;
 declare const fullApiWithMounts: typeof fullApi;
 

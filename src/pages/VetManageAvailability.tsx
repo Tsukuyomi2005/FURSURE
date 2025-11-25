@@ -3,12 +3,30 @@ import { Calendar, Clock, Save, X } from 'lucide-react';
 import { useAvailabilityStore } from '../stores/availabilityStore';
 import { toast } from 'sonner';
 
-// For now, using a placeholder vet name. In production, this would come from auth/profile
-const VET_NAME = 'Dr. Smith'; // This should be dynamic based on logged-in vet
+// Get veterinarian's full name from localStorage
+const getVetName = () => {
+  try {
+    const currentUserStr = localStorage.getItem('fursure_current_user');
+    if (currentUserStr) {
+      const currentUser = JSON.parse(currentUserStr);
+      const storedUsers = JSON.parse(localStorage.getItem('fursure_users') || '{}');
+      const userData = storedUsers[currentUser.username || currentUser.email];
+      
+      if (userData) {
+        // Combine firstName and lastName into full name (matching how it's stored in staff table)
+        const fullName = `${userData.firstName || ''} ${userData.lastName || ''}`.trim();
+        return fullName || 'Veterinarian';
+      }
+    }
+  } catch (error) {
+    console.error('Error loading vet name:', error);
+  }
+  return 'Veterinarian'; // Fallback
+};
 
 export function VetManageAvailability() {
-  const { availability, upsertAvailability } = useAvailabilityStore(VET_NAME);
-  const [activeTab, setActiveTab] = useState<'recurring' | 'custom'>('recurring');
+  const vetName = getVetName();
+  const { availability, upsertAvailability } = useAvailabilityStore(vetName);
   const hasInitialized = useRef(false);
   
   const [formData, setFormData] = useState({
@@ -113,7 +131,7 @@ export function VetManageAvailability() {
 
     try {
       await upsertAvailability({
-        veterinarianName: VET_NAME,
+        veterinarianName: vetName,
         workingDays: formData.workingDays,
         startTime: formData.startTime,
         endTime: formData.endTime,
@@ -135,36 +153,10 @@ export function VetManageAvailability() {
         <p className="text-gray-600 mt-2">Set your working hours and manage your schedule</p>
       </div>
 
-      {/* Tabs */}
+      {/* Schedule Form */}
       <div className="bg-white rounded-lg shadow-sm border">
-        <div className="border-b border-gray-200">
-          <div className="flex">
-            <button
-              onClick={() => setActiveTab('recurring')}
-              className={`px-6 py-3 font-medium transition-colors ${
-                activeTab === 'recurring'
-                  ? 'text-blue-600 border-b-2 border-blue-600'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              Recurring Schedule
-            </button>
-            <button
-              onClick={() => setActiveTab('custom')}
-              className={`px-6 py-3 font-medium transition-colors ${
-                activeTab === 'custom'
-                  ? 'text-blue-600 border-b-2 border-blue-600'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              Custom Schedule
-            </button>
-          </div>
-        </div>
-
         <div className="p-6">
-          {activeTab === 'recurring' ? (
-            <div className="space-y-6">
+          <div className="space-y-6">
               {/* Weekly Schedule */}
               <div>
                 <div className="flex items-center gap-2 mb-4">
@@ -205,27 +197,27 @@ export function VetManageAvailability() {
                   </label>
                   <div className="flex items-center gap-4">
                     <div className="flex-1 relative">
+                      <Clock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 pointer-events-none z-10" />
                       <input
                         type="time"
                         value={formData.startTime}
                         onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
-                        className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                        className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
                           errors.startTime ? 'border-red-500' : 'border-gray-300'
                         }`}
                       />
-                      <Clock className="absolute right-3 top-2.5 h-5 w-5 text-gray-400 pointer-events-none" />
                     </div>
                     <span className="text-gray-600 font-medium">to</span>
                     <div className="flex-1 relative">
+                      <Clock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 pointer-events-none z-10" />
                       <input
                         type="time"
                         value={formData.endTime}
                         onChange={(e) => setFormData({ ...formData, endTime: e.target.value })}
-                        className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                        className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
                           errors.endTime ? 'border-red-500' : 'border-gray-300'
                         }`}
                       />
-                      <Clock className="absolute right-3 top-2.5 h-5 w-5 text-gray-400 pointer-events-none" />
                     </div>
                   </div>
                   {(errors.startTime || errors.endTime) && (
@@ -282,11 +274,6 @@ export function VetManageAvailability() {
                 </div>
               </div>
             </div>
-          ) : (
-            <div className="text-center py-12">
-              <p className="text-gray-500">Custom schedule feature coming soon</p>
-            </div>
-          )}
 
           {/* Action Buttons */}
           <div className="flex justify-end gap-3 pt-6 border-t">

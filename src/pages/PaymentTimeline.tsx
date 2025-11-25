@@ -12,10 +12,12 @@ import {
   X
 } from 'lucide-react';
 import { useAppointmentStore } from '../stores/appointmentStore';
+import { useServiceStore } from '../stores/serviceStore';
 import { toast } from 'sonner';
 import type { Appointment } from '../types';
 
-const services: Record<string, string> = {
+// Legacy service mapping for backward compatibility with old appointment data
+const legacyServices: Record<string, string> = {
   'vaccination-deworming': 'Vaccination & Deworming',
   'surgery': 'Surgery',
   'consultation-treatment': 'Consultation Treatment & Confinement',
@@ -80,16 +82,28 @@ interface Transaction {
 }
 
 // Generate transactions from appointments
-const generateTransactions = (appointments: Appointment[]): Transaction[] => {
+const generateTransactions = (appointments: Appointment[], servicesList: Array<{id: string, name: string}>): Transaction[] => {
   const transactions: Transaction[] = [];
 
   appointments.forEach((appointment) => {
     if (!appointment.price) return;
 
     const appointmentIdFormatted = generateAppointmentId(appointment.id);
-    const serviceName = appointment.serviceType 
-      ? services[appointment.serviceType] || appointment.serviceType 
-      : 'N/A';
+    
+    // Get service name from services store (by ID) or legacy mapping, or fallback to ID
+    let serviceName = 'N/A';
+    if (appointment.serviceType) {
+      const service = servicesList.find(s => s.id === appointment.serviceType);
+      if (service) {
+        serviceName = service.name;
+      } else if (legacyServices[appointment.serviceType]) {
+        // Check legacy mapping for backward compatibility
+        serviceName = legacyServices[appointment.serviceType];
+      } else {
+        // Fallback to the ID if service not found
+        serviceName = appointment.serviceType;
+      }
+    }
     
     // Determine payment method from payment data
     let paymentMethod: PaymentMethod = 'At Clinic';
@@ -224,6 +238,7 @@ const generateTransactions = (appointments: Appointment[]): Transaction[] => {
 
 export function PaymentTimeline() {
   const { appointments } = useAppointmentStore();
+  const { services } = useServiceStore();
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [dateRangeFilter, setDateRangeFilter] = useState<string>('all');
   const [transactionTypeFilter, setTransactionTypeFilter] = useState<string>('all');
@@ -233,7 +248,7 @@ export function PaymentTimeline() {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
 
   // Generate transactions from appointments
-  const allTransactions = useMemo(() => generateTransactions(appointments), [appointments]);
+  const allTransactions = useMemo(() => generateTransactions(appointments, services), [appointments, services]);
 
   // Filter transactions
   const filteredTransactions = useMemo(() => {

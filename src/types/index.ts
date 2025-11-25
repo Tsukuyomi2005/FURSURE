@@ -64,4 +64,5 @@ export interface Staff {
   email: string;
   phone: string;
   status: 'active' | 'inactive';
+  licenseNumber?: string;
 }

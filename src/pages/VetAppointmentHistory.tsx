@@ -1,12 +1,21 @@
 import { useState } from 'react';
 import { Calendar, Clock, Search, Filter, User, FileText } from 'lucide-react';
 import { useAppointmentStore } from '../stores/appointmentStore';
+import { useServiceStore } from '../stores/serviceStore';
 
 // For now, using a placeholder vet name. In production, this would come from auth/profile
 const VET_NAME = 'Dr. Smith'; // This should be dynamic based on logged-in vet
 
 export function VetAppointmentHistory() {
   const { appointments } = useAppointmentStore();
+  const { services } = useServiceStore();
+  
+  // Get service name from service ID
+  const getServiceName = (serviceId: string | undefined): string => {
+    if (!serviceId) return 'N/A';
+    const service = services.find(s => s.id === serviceId);
+    return service ? service.name : serviceId; // Fallback to ID if service not found
+  };
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [dateFilter, setDateFilter] = useState<string>('');
@@ -166,7 +175,7 @@ export function VetAppointmentHistory() {
                       {apt.serviceType && (
                         <div>
                           <div className="text-sm text-gray-500 mb-1">Service</div>
-                          <div className="text-gray-700">{apt.serviceType}</div>
+                          <div className="text-gray-700">{getServiceName(apt.serviceType)}</div>
                         </div>
                       )}
                       {apt.price && (
