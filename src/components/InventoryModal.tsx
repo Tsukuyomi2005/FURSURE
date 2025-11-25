@@ -51,9 +51,7 @@ export function InventoryModal({ isOpen, onClose, item }: InventoryModalProps) {
     if (!formData.category.trim()) {
       newErrors.category = 'Category is required';
     }
-    if (formData.stock < 0) {
-      newErrors.stock = 'Stock must be non-negative';
-    }
+    // Stock validation removed - admin cannot set stock
     if (formData.price <= 0) {
       newErrors.price = 'Price must be greater than 0';
     }
@@ -73,9 +71,23 @@ export function InventoryModal({ isOpen, onClose, item }: InventoryModalProps) {
     setIsSubmitting(true);
     try {
       if (item) {
-        await updateItem(item.id, formData);
+        // When editing, only update name, category, price, and expiry date (not stock)
+        await updateItem(item.id, {
+          name: formData.name,
+          category: formData.category,
+          price: formData.price,
+          expiryDate: formData.expiryDate,
+          // Stock is not updated - it's managed by clinic staff
+        });
       } else {
-        await addItem(formData);
+        // When adding new item, set stock to 0 (admin cannot set stock - only clinic staff can)
+        await addItem({
+          name: formData.name,
+          category: formData.category,
+          stock: 0, // Stock starts at 0, clinic staff will add stock
+          price: formData.price,
+          expiryDate: formData.expiryDate,
+        });
       }
       onClose();
     } catch (error) {
@@ -143,26 +155,10 @@ export function InventoryModal({ isOpen, onClose, item }: InventoryModalProps) {
               {errors.category && <p className="text-red-500 text-sm mt-1">{errors.category}</p>}
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            {!item && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Stock *
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  value={formData.stock}
-                  onChange={(e: ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, stock: parseInt(e.target.value) || 0 })}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                    errors.stock ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                />
-                {errors.stock && <p className="text-red-500 text-sm mt-1">{errors.stock}</p>}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Price ($) *
+                  Price (₱) *
                 </label>
                 <input
                   type="number"
@@ -175,8 +171,41 @@ export function InventoryModal({ isOpen, onClose, item }: InventoryModalProps) {
                   }`}
                 />
                 {errors.price && <p className="text-red-500 text-sm mt-1">{errors.price}</p>}
+                <p className="text-xs text-gray-500 mt-1">Stock will be set to 0. Clinic staff will manage stock quantities.</p>
               </div>
-            </div>
+            )}
+            {item && (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Current Stock
+                  </label>
+                  <input
+                    type="number"
+                    value={item.stock}
+                    disabled
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Stock is managed by clinic staff</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Price (₱) *
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={formData.price}
+                    onChange={(e: ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.price ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                  />
+                  {errors.price && <p className="text-red-500 text-sm mt-1">{errors.price}</p>}
+                </div>
+              </div>
+            )}
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">

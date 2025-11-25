@@ -314,7 +314,7 @@ export function AppointmentModal({ isOpen, onClose, date, time }: AppointmentMod
                 >
                   {serviceTypes.map((service) => (
                     <option key={service.value} value={service.value}>
-                      {service.label} - ${service.price}
+                      {service.label} - ₱{service.price}
                     </option>
                   ))}
                 </select>
@@ -357,10 +357,10 @@ export function AppointmentModal({ isOpen, onClose, date, time }: AppointmentMod
                   <span className="text-sm font-medium text-green-900">Payment Information</span>
                 </div>
                 <p className="text-sm text-green-800">
-                  Service: {selectedService?.label} - ${selectedService?.price}
+                  Service: {selectedService?.label} - ₱{selectedService?.price}
                 </p>
                 <p className="text-sm text-green-800">
-                  Down Payment Required: ${Math.round((selectedService?.price || 0) * 0.3)}
+                  Down Payment Required: ₱{Math.round((selectedService?.price || 0) * 0.3)}
                 </p>
               </div>
 

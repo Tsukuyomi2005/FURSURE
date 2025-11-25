@@ -14,7 +14,8 @@ import {
   Receipt,
   Stethoscope,
   Users,
-  User
+  User,
+  BarChart3
 } from 'lucide-react';
 import { useRoleStore } from '../stores/roleStore';
 import { cn } from '../lib/utils';
@@ -31,10 +32,15 @@ export function Layout({ children }: LayoutProps) {
 
   const hasFullAccess = role === 'vet' || role === 'staff';
   const isVeterinarian = role === 'veterinarian';
+  const isClinicStaff = role === 'clinicStaff';
 
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: Home, current: location.pathname === '/dashboard' },
-    ...(isVeterinarian ? [
+    ...(isClinicStaff ? [
+      { name: 'Manage Availability', href: '/staff-manage-availability', icon: Clock, current: location.pathname === '/staff-manage-availability' },
+      { name: 'Inventory', href: '/staff-inventory', icon: Package, current: location.pathname === '/staff-inventory' },
+      { name: 'Profile Settings', href: '/staff-profile-settings', icon: User, current: location.pathname === '/staff-profile-settings' },
+    ] : isVeterinarian ? [
       { name: 'My Appointments', href: '/vet-my-appointments', icon: CalendarCheck, current: location.pathname === '/vet-my-appointments' },
       { name: 'Manage Availability', href: '/vet-manage-availability', icon: Clock, current: location.pathname === '/vet-manage-availability' },
       { name: 'Pet Records', href: '/pet-records', icon: FileText, current: location.pathname === '/pet-records' },
@@ -45,12 +51,14 @@ export function Layout({ children }: LayoutProps) {
       { name: 'Schedule Management', href: '/schedule-management', icon: Clock, current: location.pathname === '/schedule-management' },
       { name: 'Services', href: '/services', icon: Stethoscope, current: location.pathname === '/services' },
       { name: 'Veterinarians/Staff', href: '/staff-management', icon: Users, current: location.pathname === '/staff-management' },
-      { name: 'Inventory & Analytics', href: '/inventory', icon: Package, current: location.pathname === '/inventory' },
+      { name: 'Inventory', href: '/inventory', icon: Package, current: location.pathname === '/inventory' },
+      { name: 'Reports', href: '/reports', icon: BarChart3, current: location.pathname === '/reports' },
     ] : [
       { name: hasFullAccess ? 'Appointments' : 'Book Appointment', href: '/appointments', icon: Calendar, current: location.pathname === '/appointments' },
       { name: 'My Appointments', href: '/my-appointments', icon: CalendarCheck, current: location.pathname === '/my-appointments' },
       { name: 'Payment Timeline', href: '/payment-timeline', icon: Receipt, current: location.pathname === '/payment-timeline' },
       { name: 'Pet Records', href: '/pet-records', icon: FileText, current: location.pathname === '/pet-records' },
+      { name: 'Profile Settings', href: '/owner-profile-settings', icon: User, current: location.pathname === '/owner-profile-settings' },
     ]),
   ];
 
@@ -60,6 +68,7 @@ export function Layout({ children }: LayoutProps) {
       case 'staff': return 'bg-green-100 text-green-800';
       case 'owner': return 'bg-purple-100 text-purple-800';
       case 'veterinarian': return 'bg-indigo-100 text-indigo-800';
+      case 'clinicStaff': return 'bg-teal-100 text-teal-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -172,7 +181,7 @@ export function Layout({ children }: LayoutProps) {
               "px-3 py-1 rounded-full text-xs font-medium capitalize",
               getRoleBadgeColor()
             )}>
-              {role === 'vet' ? 'Veterinary Staff' : role === 'staff' ? 'Staff Member' : role === 'veterinarian' ? 'Veterinarian' : 'Pet Owner'}
+              {role === 'vet' ? 'Veterinary Staff' : role === 'staff' ? 'Staff Member' : role === 'veterinarian' ? 'Veterinarian' : role === 'clinicStaff' ? 'Clinic Staff' : 'Pet Owner'}
             </span>
           </div>
         </header>

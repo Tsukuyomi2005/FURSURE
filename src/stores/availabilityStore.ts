@@ -36,20 +36,27 @@ function convertAvailability(doc: {
 }
 
 export function useAvailabilityStore(veterinarianName?: string) {
+  // Always call useQuery hooks unconditionally (Rules of Hooks requirement)
+  // This ensures hooks are called in the same order every render
+  // Use a sentinel value that won't exist in the database when veterinarianName is not provided
   // @ts-ignore - API types will be generated when Convex syncs
-  const singleAvailability = veterinarianName
-    ? useQuery(api.availability.getByVeterinarian, { veterinarianName })
-    : null;
+  const singleAvailability = useQuery(
+    api.availability.getByVeterinarian,
+    { veterinarianName: veterinarianName || "__NO_VET__" }
+  );
   // @ts-ignore
-  const allAvailabilityData = !veterinarianName
-    ? useQuery(api.availability.list)
-    : null;
+  const allAvailabilityData = useQuery(api.availability.list);
   // @ts-ignore
   const upsertAvailabilityMutation = useMutation(api.availability.upsert);
 
-  const availability: Availability | null = singleAvailability
-    ? convertAvailability(singleAvailability)
-    : null;
+  // Handle the case where query returns null, undefined, or when veterinarianName is not provided
+  // Only convert if we have a valid veterinarianName and a valid result
+  const availability: Availability | null = 
+    veterinarianName && 
+    singleAvailability && 
+    singleAvailability !== null
+      ? convertAvailability(singleAvailability)
+      : null;
 
   const allAvailability: Availability[] = allAvailabilityData
     ? allAvailabilityData.map(convertAvailability)

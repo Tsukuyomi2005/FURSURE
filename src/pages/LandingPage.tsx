@@ -43,7 +43,7 @@ export function LandingPage() {
     navigate('/dashboard');
   };
 
-  const handleClinicStaffAccess = () => {
+  const handleAdminAccess = () => {
     setRole('vet');
     setIsDropdownOpen(false);
     navigate('/dashboard');
@@ -51,6 +51,12 @@ export function LandingPage() {
 
   const handleVeterinarianAccess = () => {
     setRole('veterinarian');
+    setIsDropdownOpen(false);
+    navigate('/dashboard');
+  };
+
+  const handleClinicStaffAccess = () => {
+    setRole('clinicStaff');
     setIsDropdownOpen(false);
     navigate('/dashboard');
   };
@@ -118,7 +124,7 @@ export function LandingPage() {
                     </div>
                   </button>
                   <button
-                    onClick={handleClinicStaffAccess}
+                    onClick={handleAdminAccess}
                     className="w-full px-4 py-3 text-left hover:bg-blue-50 transition-colors flex items-center gap-3 group border-t border-gray-100"
                   >
                     <div className="p-2 bg-blue-100 rounded-lg group-hover:bg-blue-200 transition-colors">
@@ -139,6 +145,18 @@ export function LandingPage() {
                     <div>
                       <div className="font-semibold text-gray-900">Veterinarian</div>
                       <div className="text-sm text-gray-500">Manage your schedule & appointments</div>
+                    </div>
+                  </button>
+                  <button
+                    onClick={handleClinicStaffAccess}
+                    className="w-full px-4 py-3 text-left hover:bg-teal-50 transition-colors flex items-center gap-3 group border-t border-gray-100"
+                  >
+                    <div className="p-2 bg-teal-100 rounded-lg group-hover:bg-teal-200 transition-colors">
+                      <Users className="h-5 w-5 text-teal-600" />
+                    </div>
+                    <div>
+                      <div className="font-semibold text-gray-900">Clinic Staff</div>
+                      <div className="text-sm text-gray-500">Manage inventory & availability</div>
                     </div>
                   </button>
                 </div>

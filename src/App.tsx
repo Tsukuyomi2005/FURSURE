@@ -4,6 +4,7 @@ import { Toaster } from 'sonner';
 import { Layout } from './components/Layout';
 import { Dashboard } from './pages/Dashboard';
 import { Inventory } from './pages/Inventory';
+import { Reports } from './pages/Reports';
 import { Appointments } from './pages/Appointments';
 import { PetRecords } from './pages/PetRecords';
 import { LandingPage } from './pages/LandingPage';
@@ -17,6 +18,11 @@ import { VetMyAppointments } from './pages/VetMyAppointments';
 import { VetManageAvailability } from './pages/VetManageAvailability';
 import { VetAppointmentHistory } from './pages/VetAppointmentHistory';
 import { VetProfileSettings } from './pages/VetProfileSettings';
+import { StaffDashboard } from './pages/StaffDashboard';
+import { StaffManageAvailability } from './pages/StaffManageAvailability';
+import { StaffProfileSettings } from './pages/StaffProfileSettings';
+import { StaffInventory } from './pages/StaffInventory';
+import { OwnerProfileSettings } from './pages/OwnerProfileSettings';
 import { useRoleStore } from './stores/roleStore';
 import { useEffect } from 'react';
 
@@ -25,14 +31,15 @@ export default function App() {
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
-    const roleParam = urlParams.get('role') as 'vet' | 'staff' | 'owner' | 'veterinarian' | null;
-    if (roleParam && ['vet', 'staff', 'owner', 'veterinarian'].includes(roleParam)) {
+    const roleParam = urlParams.get('role') as 'vet' | 'staff' | 'owner' | 'veterinarian' | 'clinicStaff' | null;
+    if (roleParam && ['vet', 'staff', 'owner', 'veterinarian', 'clinicStaff'].includes(roleParam)) {
       setRole(roleParam);
     }
   }, [setRole]);
 
   const hasFullAccess = role === 'vet' || role === 'staff';
   const isVeterinarian = role === 'veterinarian';
+  const isClinicStaff = role === 'clinicStaff';
 
   // Show landing page if no role is selected
   if (!role || window.location.pathname === '/') {
@@ -54,8 +61,17 @@ export default function App() {
       <div className="min-h-screen bg-gray-50">
         <Layout>
           <Routes>
-            <Route path="/dashboard" element={isVeterinarian ? <VetDashboard /> : <Dashboard />} />
-            {isVeterinarian ? (
+            <Route path="/dashboard" element={
+              isVeterinarian ? <VetDashboard /> : 
+              isClinicStaff ? <StaffDashboard /> : 
+              <Dashboard />} />
+            {isClinicStaff ? (
+              <>
+                <Route path="/staff-manage-availability" element={<StaffManageAvailability />} />
+                <Route path="/staff-inventory" element={<StaffInventory />} />
+                <Route path="/staff-profile-settings" element={<StaffProfileSettings />} />
+              </>
+            ) : isVeterinarian ? (
               <>
                 <Route path="/vet-my-appointments" element={<VetMyAppointments />} />
                 <Route path="/vet-manage-availability" element={<VetManageAvailability />} />
@@ -70,6 +86,7 @@ export default function App() {
                 <Route path="/services" element={<Services />} />
                 <Route path="/staff-management" element={<StaffManagement />} />
                 <Route path="/inventory" element={<Inventory />} />
+                <Route path="/reports" element={<Reports />} />
               </>
             ) : (
               <>
@@ -77,6 +94,7 @@ export default function App() {
                 <Route path="/my-appointments" element={<MyAppointments />} />
                 <Route path="/payment-timeline" element={<PaymentTimeline />} />
                 <Route path="/pet-records" element={<PetRecords />} />
+                <Route path="/owner-profile-settings" element={<OwnerProfileSettings />} />
               </>
             )}
             <Route path="*" element={<Navigate to="/dashboard" replace />} />

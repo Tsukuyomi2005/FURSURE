@@ -1,15 +1,14 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { Calendar, Clock, Save, X } from 'lucide-react';
 import { useAvailabilityStore } from '../stores/availabilityStore';
 import { toast } from 'sonner';
 
-// For now, using a placeholder vet name. In production, this would come from auth/profile
-const VET_NAME = 'Dr. Smith'; // This should be dynamic based on logged-in vet
+// For now, using a placeholder staff name. In production, this would come from auth/profile
+const STAFF_NAME = 'Staff Member'; // This should be dynamic based on logged-in staff
 
-export function VetManageAvailability() {
-  const { availability, upsertAvailability } = useAvailabilityStore(VET_NAME);
+export function StaffManageAvailability() {
+  const { availability, upsertAvailability } = useAvailabilityStore(STAFF_NAME);
   const [activeTab, setActiveTab] = useState<'recurring' | 'custom'>('recurring');
-  const hasInitialized = useRef(false);
   
   const [formData, setFormData] = useState({
     workingDays: [] as string[],
@@ -21,9 +20,9 @@ export function VetManageAvailability() {
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Load existing availability only once when it first becomes available
+  // Load existing availability
   useEffect(() => {
-    if (availability && !hasInitialized.current) {
+    if (availability) {
       setFormData({
         workingDays: availability.workingDays,
         startTime: availability.startTime,
@@ -31,10 +30,6 @@ export function VetManageAvailability() {
         appointmentDuration: availability.appointmentDuration,
         breakTime: availability.breakTime,
       });
-      hasInitialized.current = true;
-    } else if (!availability) {
-      // Reset initialization flag if availability is cleared
-      hasInitialized.current = false;
     }
   }, [availability]);
 
@@ -113,7 +108,7 @@ export function VetManageAvailability() {
 
     try {
       await upsertAvailability({
-        veterinarianName: VET_NAME,
+        veterinarianName: STAFF_NAME,
         workingDays: formData.workingDays,
         startTime: formData.startTime,
         endTime: formData.endTime,
