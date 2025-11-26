@@ -77,50 +77,54 @@ export function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex">
-      {/* Left Panel - Branding */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-b from-purple-700 via-purple-600 to-purple-800 items-center justify-center p-12">
-        <div className="text-center text-white">
-          <div className="mb-8">
-            <div className="inline-flex items-center justify-center w-24 h-24 bg-white/20 rounded-full mb-4 backdrop-blur-sm">
-              <Heart className="h-12 w-12 text-white" />
-            </div>
-          </div>
-          <h1 className="text-5xl font-bold mb-4">FURSURE</h1>
-          <p className="text-xl text-white/90">Professional veterinary care for your beloved pets</p>
-        </div>
-      </div>
-
-      {/* Right Panel - Login Form */}
-      <div className="flex-1 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 bg-white">
-        <div className="sm:mx-auto sm:w-full sm:max-w-md">
-          {/* Return to Home Link */}
-          <Link
-            to="/"
-            className="inline-flex items-center gap-2 text-gray-600 hover:text-purple-600 mb-8 transition-colors"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            <span>Return to Home</span>
-          </Link>
-
-          {/* Logo */}
-          <div className="flex justify-center mb-8">
-            <div className="relative">
-              <div className="absolute inset-0 bg-purple-600 rounded-full blur-sm opacity-30"></div>
-              <div className="relative bg-gradient-to-br from-purple-600 to-indigo-600 rounded-full p-3">
-                <Heart className="h-8 w-8 text-white" />
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4 py-8">
+      <div className="max-w-5xl w-full bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col md:flex-row">
+        {/* Left Panel - Branding */}
+        <div className="md:w-1/2 bg-gradient-to-b from-purple-800 via-purple-700 to-purple-900 flex items-center justify-center p-10 relative">
+          <div className="absolute inset-6 border border-white/10 rounded-3xl pointer-events-none" />
+          <div className="text-center text-white relative">
+            <div className="mb-8">
+              <div className="inline-flex items-center justify-center w-20 h-20 bg-white/15 rounded-full mb-4 backdrop-blur-md">
+                <Heart className="h-10 w-10 text-white" />
               </div>
             </div>
+            <h1 className="text-3xl md:text-4xl font-bold mb-2">FURSURE</h1>
+            <p className="text-sm md:text-base text-white/80">
+              Professional veterinary care for the pets you love most.
+            </p>
           </div>
+        </div>
 
-          {/* Welcome Message */}
-          <div className="text-center mb-8">
-            <h2 className="text-3xl font-bold text-gray-900">Welcome Back</h2>
-            <p className="mt-2 text-sm text-gray-600">Sign in to access your dashboard</p>
-          </div>
+        {/* Right Panel - Login Form */}
+        <div className="md:w-1/2 bg-white flex flex-col justify-center py-8 px-6 sm:px-8">
+          <div className="w-full max-w-md mx-auto">
+            {/* Return to Home Link */}
+            <Link
+              to="/"
+              className="inline-flex items-center gap-2 text-gray-500 hover:text-purple-600 mb-6 text-sm transition-colors"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              <span>Return to Home</span>
+            </Link>
 
-          {/* Login Form */}
-          <form className="space-y-6" onSubmit={handleSubmit}>
+            {/* Logo */}
+            <div className="flex justify-center mb-6">
+              <div className="relative">
+                <div className="absolute inset-0 bg-purple-600 rounded-full blur-sm opacity-30"></div>
+                <div className="relative bg-gradient-to-br from-purple-600 to-indigo-600 rounded-full p-3">
+                  <Heart className="h-8 w-8 text-white" />
+                </div>
+              </div>
+            </div>
+
+            {/* Welcome Message */}
+            <div className="text-center mb-6">
+              <h2 className="text-2xl md:text-3xl font-bold text-gray-900">Welcome Back</h2>
+              <p className="mt-2 text-sm text-gray-600">Sign in to access your dashboard</p>
+            </div>
+
+            {/* Login Form */}
+            <form className="space-y-6" onSubmit={handleSubmit}>
             {/* Email Field */}
             <div>
               <label htmlFor="email" className="sr-only">
@@ -220,21 +224,22 @@ export function LoginPage() {
               </button>
             </div>
 
-            {/* Register Link */}
-            <div className="text-center text-sm">
-              <span className="text-gray-600">Don't have an account? </span>
-              <Link
-                to="/signup"
-                className="font-medium text-purple-600 hover:text-purple-500"
-              >
-                Register here
-              </Link>
-            </div>
-          </form>
+              {/* Register Link */}
+              <div className="text-center text-sm">
+                <span className="text-gray-600">Don't have an account? </span>
+                <Link
+                  to="/signup"
+                  className="font-medium text-purple-600 hover:text-purple-500"
+                >
+                  Register here
+                </Link>
+              </div>
+            </form>
 
-          {/* Footer */}
-          <div className="mt-8 text-center text-xs text-gray-500">
-            © 2024 FURSURE Veterinary Clinic. All rights reserved.
+            {/* Footer */}
+            <div className="mt-8 text-center text-xs text-gray-500">
+              © 2024 FURSURE Veterinary Clinic. All rights reserved.
+            </div>
           </div>
         </div>
       </div>

@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
-import { 
-  Heart, 
-  Stethoscope, 
-  Calendar, 
-  Package, 
-  BarChart3, 
+import {
+  Heart,
+  Stethoscope,
+  Calendar,
+  Package,
+  BarChart3,
   Users,
   Menu,
   X,
@@ -14,7 +14,13 @@ import {
   FileText,
   UserCheck,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Bone,
+  Scissors,
+  FlaskConical,
+  Home,
+  Syringe,
+  Hospital
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -22,17 +28,26 @@ export function LandingPage() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [activeSection, setActiveSection] = useState<string>('');
+  const [activeTestimonial, setActiveTestimonial] = useState(0);
 
   const aboutRef = useRef<HTMLElement>(null);
   const servicesRef = useRef<HTMLElement>(null);
   const featuresRef = useRef<HTMLElement>(null);
   const faqRef = useRef<HTMLElement>(null);
 
-  // Smooth scroll handler
+  // Smooth scroll handler with offset for sticky header
   const handleScrollTo = (id: string) => {
     const element = document.getElementById(id);
     if (element) {
-      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      const headerOffset = 80; // approximate sticky header height
+      const elementTop = element.getBoundingClientRect().top + window.scrollY;
+      const offsetPosition = elementTop - headerOffset;
+
+      window.scrollTo({
+        top: offsetPosition,
+        behavior: 'smooth',
+      });
+
       setIsMobileMenuOpen(false);
     }
   };
@@ -102,6 +117,121 @@ export function LandingPage() {
     {
       question: "Is my information secure?",
       answer: "Absolutely! We use enterprise-grade security measures to protect all personal and medical information. Your data is encrypted and stored securely, and we comply with all healthcare data protection regulations."
+    }
+  ];
+
+  const testimonials = [
+    {
+      name: 'Lori Holland',
+      role: 'Dog Mom of 2',
+      quote:
+        "Booking vet visits used to be so stressful. With FURSURE I can schedule everything from my couch and get reminders before every appointment.",
+      rating: 5,
+      avatar:
+        'https://images.pexels.com/photos/1181467/pexels-photo-1181467.jpeg?auto=compress&cs=tinysrgb&w=400'
+    },
+    {
+      name: 'Katy Harper',
+      role: 'First-time Puppy Parent',
+      quote:
+        "The pet records dashboard is a game changer. I never lose track of vaccines or prescriptions anymore.",
+      rating: 5,
+      avatar:
+        'https://images.pexels.com/photos/733872/pexels-photo-733872.jpeg?auto=compress&cs=tinysrgb&w=400'
+    },
+    {
+      name: 'Sandra Hoosier',
+      role: 'Clinic Manager',
+      quote:
+        'Managing schedules and inventory has never been this easy. Our team finally spends more time with pets and less time on paperwork.',
+      rating: 4,
+      avatar:
+        'https://images.pexels.com/photos/1181519/pexels-photo-1181519.jpeg?auto=compress&cs=tinysrgb&w=400'
+    }
+  ];
+
+  const products = [
+    {
+      name: 'Tango Treats',
+      description: 'Grain-free bites for healthy training rewards.',
+      badge: 'Best Seller',
+      image:
+        'https://images.pexels.com/photos/140014/pexels-photo-140014.jpeg?auto=compress&cs=tinysrgb&w=400'
+    },
+    {
+      name: 'Daily Wellness Bites',
+      description: 'Vitamins & supplements for shiny coats and strong joints.',
+      badge: 'New',
+      image:
+        'https://images.pexels.com/photos/4110473/pexels-photo-4110473.jpeg?auto=compress&cs=tinysrgb&w=400'
+    },
+    {
+      name: 'Gourmet Kibble Mix',
+      description: 'Balanced nutrition for active cats & dogs.',
+      badge: '15% Off',
+      image:
+        'https://images.pexels.com/photos/5731865/pexels-photo-5731865.jpeg?auto=compress&cs=tinysrgb&w=400'
+    },
+    {
+      name: 'Calming Chews',
+      description: 'Perfect for vet visits, grooming, and travel days.',
+      badge: 'Vet Recommended',
+      image:
+        'https://images.pexels.com/photos/5731911/pexels-photo-5731911.jpeg?auto=compress&cs=tinysrgb&w=400'
+    }
+  ];
+
+  // Auto-rotate testimonials
+  useEffect(() => {
+    const id = setInterval(() => {
+      setActiveTestimonial((prev) => (prev + 1) % testimonials.length);
+    }, 7000);
+
+    return () => clearInterval(id);
+  }, [testimonials.length]);
+
+  const clinicServices = [
+    {
+      name: 'Pet Foods and Accessories',
+      description: 'Premium nutrition and everyday essentials tailored to your pet’s needs.',
+      icon: Package,
+      imageUrl: 'https://cdn-icons-png.flaticon.com/128/3737/3737711.png'
+    },
+    {
+      name: 'Grooming',
+      description: 'Bathing, nail trimming, and coat care so your pets look and feel their best.',
+      icon: Scissors,
+      imageUrl: 'https://cdn-icons-png.flaticon.com/128/12452/12452259.png'
+    },
+    {
+      name: 'Laboratory',
+      description: 'On-site diagnostics for faster, more accurate health assessments.',
+      icon: FlaskConical,
+      imageUrl: 'https://cdn-icons-png.flaticon.com/128/18650/18650354.png'
+    },
+    {
+      name: 'Boarding',
+      description: 'Safe, comfortable stays for your pets while you are away.',
+      icon: Home,
+      imageUrl: 'https://cdn-icons-png.flaticon.com/128/3636/3636365.png'
+    },
+    {
+      name: 'Consultation, Treatment, and Confinement',
+      description: 'Complete medical care from check-up to recovery.',
+      icon: Stethoscope,
+      imageUrl: 'https://cdn-icons-png.flaticon.com/128/12639/12639544.png'
+    },
+    {
+      name: 'Surgery',
+      description: 'Modern surgical facilities with dedicated post-operative care.',
+      icon: Hospital,
+      imageUrl: 'https://cdn-icons-png.flaticon.com/128/3737/3737675.png'
+    },
+    {
+      name: 'Vaccination and Deworming',
+      description: 'Preventive care plans to keep your pets protected year-round.',
+      icon: Syringe,
+      imageUrl: 'https://cdn-icons-png.flaticon.com/128/2372/2372856.png'
     }
   ];
 
@@ -276,87 +406,80 @@ export function LandingPage() {
       </header>
 
       {/* Hero Section */}
-      <section className="relative overflow-hidden">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 lg:py-32">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+      <section className="relative overflow-hidden hero-bg pb-36">
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute -top-24 -right-24 w-72 h-72 bg-purple-200 rounded-full blur-3xl opacity-60 animate-float-slow"></div>
+          <div className="absolute -bottom-32 -left-10 w-80 h-80 bg-indigo-200 rounded-full blur-3xl opacity-50 animate-float-slower"></div>
+        </div>
+
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 lg:py-16">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
             {/* Left: Text Content */}
             <div className="space-y-8">
-              <h1 className="text-5xl lg:text-6xl font-serif font-bold text-slate-800 leading-tight">
-                Veterinary care{' '}
-                <span className="bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
-                  redefined.
+              <h1 className="text-5xl lg:text-6xl font-serif font-bold text-white leading-tight">
+                We take{' '}
+                <span className="bg-gradient-to-r from-purple-500 via-pink-500 to-indigo-600 bg-clip-text text-transparent">
+                  care of your pets
                 </span>
               </h1>
               
-              <div className="space-y-4 text-lg text-gray-600 leading-relaxed">
+              <div className="space-y-4 text-lg text-purple-100 leading-relaxed">
                 <p>
-                  Difficulty with getting an appointment, stress of traveling to the clinic, long waiting times – 
-                  some of the reasons why our pets don't see their vet often enough.
+                  Before you bring your pet to the clinic, we make sure you’re fully prepared. From quick bookings to real-time updates, 
+                  we help you give your pets the care they deserve—without the stress.
                 </p>
                 <p>
-                  With <strong className="text-slate-800">FURSURE</strong>, our days of facing these issues are over. 
-                  Simply manage your pet's care from the comfort of your home, book appointments seamlessly, 
-                  and access comprehensive veterinary services when you need them most.
+                  With <strong className="text-white font-semibold">FURSURE</strong>, you can manage appointments, health records, and payments all in one modern, 
+                  easy-to-use platform—so you can focus on making memories, not managing schedules.
                 </p>
               </div>
 
               <div className="flex flex-wrap gap-4">
                 <Link
                   to="/signup"
-                  className="px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg font-semibold hover:from-purple-700 hover:to-indigo-700 transition-all shadow-lg hover:shadow-xl"
+                  className="px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-full font-semibold hover:from-purple-700 hover:to-indigo-700 transition-all shadow-lg hover:shadow-xl flex items-center gap-2"
                 >
-                  Get Started
+                  Book a Visit
+                  <span className="text-xl leading-none">↗</span>
                 </Link>
                 <button
                   onClick={() => handleScrollTo('services')}
-                  className="px-6 py-3 border-2 border-purple-600 text-purple-600 rounded-lg font-semibold hover:bg-purple-50 transition-colors"
+                  className="px-6 py-3 border-2 border-purple-200 text-white rounded-full font-semibold hover:border-purple-400 hover:bg-purple-50/20 transition-colors"
                 >
-                  Learn More
+                  Schedule a Call
                 </button>
               </div>
 
               {/* Stats */}
-              <div className="grid grid-cols-3 gap-6 pt-8 border-t border-gray-200">
+              <div className="grid grid-cols-3 gap-6 pt-8 border-t border-purple-100">
                 <div>
-                  <div className="text-3xl font-bold text-purple-600">24/7</div>
-                  <div className="text-sm text-gray-600">Access</div>
+                  <div className="text-3xl font-bold text-purple-300">24/7</div>
+                  <div className="text-sm text-purple-100">Care &amp; Support</div>
                 </div>
                 <div>
-                  <div className="text-3xl font-bold text-purple-600">100%</div>
-                  <div className="text-sm text-gray-600">Secure</div>
+                  <div className="text-3xl font-bold text-purple-300">4.9★</div>
+                  <div className="text-sm text-purple-100">Client Rating</div>
                 </div>
                 <div>
-                  <div className="text-3xl font-bold text-purple-600">Fast</div>
-                  <div className="text-sm text-gray-600">Booking</div>
+                  <div className="text-3xl font-bold text-purple-300">+2K</div>
+                  <div className="text-sm text-purple-100">Happy Pets</div>
                 </div>
               </div>
             </div>
 
             {/* Right: Visual Content */}
             <div className="relative">
-              <div className="relative bg-gradient-to-br from-purple-50 to-indigo-50 rounded-3xl p-8 shadow-2xl">
-                {/* Decorative Elements */}
-                <div className="absolute -top-4 -right-4 w-32 h-32 bg-purple-200 rounded-full blur-3xl opacity-50"></div>
-                <div className="absolute -bottom-4 -left-4 w-40 h-40 bg-indigo-200 rounded-full blur-3xl opacity-50"></div>
-                
-                {/* Main Visual */}
-                <div className="relative bg-white rounded-2xl p-6 shadow-lg">
-                  <div className="aspect-video bg-gradient-to-br from-slate-100 to-slate-200 rounded-lg flex items-center justify-center mb-4">
-                    <div className="text-center">
-                      <Calendar className="h-16 w-16 text-purple-600 mx-auto mb-2" />
-                      <div className="text-sm text-gray-600 font-medium">Online Appointment Booking</div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-purple-600 to-indigo-600 rounded-full flex items-center justify-center">
-                      <Clock className="h-5 w-5 text-white" />
-                    </div>
-                    <div>
-                      <div className="font-semibold text-gray-900">Book Instantly</div>
-                      <div className="text-sm text-gray-500">Available 24/7</div>
-                    </div>
-                  </div>
-                </div>
+              <div className="relative bg-gradient-to-br from-purple-50 to-indigo-50 rounded-3xl p-0 shadow-2xl overflow-hidden border-4 border-purple-500">
+                {/* Floating accents */}
+                <div className="absolute -top-6 -left-6 w-32 h-32 bg-purple-300/40 rounded-full blur-2xl"></div>
+                <div className="absolute -bottom-10 right-[-40px] w-40 h-40 bg-indigo-300/40 rounded-full blur-3xl"></div>
+
+                {/* Single full-size image */}
+                <img
+                  src="https://img.freepik.com/free-photo/positive-afro-girl-yellow-jumper-holds-small-puppy-with-black-ear-plays-with-cute-pet-feels-energized-pleased_273609-31198.jpg?semt=ais_hybrid&w=740&q=80"
+                  alt="Girl with puppy"
+                  className="w-full h-auto object-cover block"
+                />
               </div>
             </div>
           </div>
@@ -364,16 +487,20 @@ export function LandingPage() {
       </section>
 
       {/* Who We Are Section */}
-      <section id="about" ref={aboutRef} className="bg-gray-50 py-20">
+      <section
+        id="about"
+        ref={aboutRef}
+        className="bg-gradient-to-br from-purple-100 via-purple-50 to-indigo-100 py-14"
+      >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
+          <div className="text-center mb-10">
             <h2 className="text-4xl font-bold text-slate-800 mb-4">Who We Are</h2>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto">
               FURSURE is a modern veterinary clinic management system designed to bridge the gap between pet owners and veterinary care
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-10 items-center">
             <div className="space-y-6">
               <div className="space-y-4">
                 <h3 className="text-2xl font-bold text-slate-800">Our Mission</h3>
@@ -445,94 +572,56 @@ export function LandingPage() {
       </section>
 
       {/* Services Section */}
-      <section id="services" ref={servicesRef} className="py-20">
+      <section id="services" ref={servicesRef} className="py-14">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
+          <div className="text-center mb-10">
             <h2 className="text-4xl font-bold text-slate-800 mb-4">Our Services</h2>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Comprehensive veterinary care management for both pet owners and clinic staff
+              Everything your pet needs, from everyday care to advanced medical treatment.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
-            {/* Service 1 */}
-            <div className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition-shadow border border-gray-100">
-              <div className="p-4 bg-purple-100 rounded-xl w-fit mb-4">
-                <Stethoscope className="h-8 w-8 text-purple-600" />
-              </div>
-              <h3 className="text-xl font-bold text-slate-800 mb-3">General Consultation</h3>
-              <p className="text-gray-600 mb-4">
-                Comprehensive health check-ups and consultations with licensed veterinarians for your pet's wellness.
-              </p>
-              <ul className="space-y-2 text-sm text-gray-600">
-                <li className="flex items-start gap-2">
-                  <CheckCircle className="h-4 w-4 text-purple-600 mt-0.5 flex-shrink-0" />
-                  <span>Health assessments</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <CheckCircle className="h-4 w-4 text-purple-600 mt-0.5 flex-shrink-0" />
-                  <span>Treatment planning</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <CheckCircle className="h-4 w-4 text-purple-600 mt-0.5 flex-shrink-0" />
-                  <span>Follow-up care</span>
-                </li>
-              </ul>
-            </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-10">
+            {clinicServices.map((service, index) => {
+              const Icon = service.icon;
+              const hasCustomImage = 'imageUrl' in service && !!service.imageUrl;
+              const isLast = index === clinicServices.length - 1;
 
-            {/* Service 2 */}
-            <div className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition-shadow border border-gray-100">
-              <div className="p-4 bg-blue-100 rounded-xl w-fit mb-4">
-                <FileText className="h-8 w-8 text-blue-600" />
-              </div>
-              <h3 className="text-xl font-bold text-slate-800 mb-3">Vaccination Services</h3>
-              <p className="text-gray-600 mb-4">
-                Complete vaccination programs to keep your pets protected against common diseases and infections.
-              </p>
-              <ul className="space-y-2 text-sm text-gray-600">
-                <li className="flex items-start gap-2">
-                  <CheckCircle className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
-                  <span>Core vaccines</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <CheckCircle className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
-                  <span>Booster shots</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <CheckCircle className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
-                  <span>Vaccination records</span>
-                </li>
-              </ul>
-            </div>
-
-            {/* Service 3 */}
-            <div className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition-shadow border border-gray-100">
-              <div className="p-4 bg-indigo-100 rounded-xl w-fit mb-4">
-                <Calendar className="h-8 w-8 text-indigo-600" />
-              </div>
-              <h3 className="text-xl font-bold text-slate-800 mb-3">Emergency Care</h3>
-              <p className="text-gray-600 mb-4">
-                Immediate veterinary attention for urgent situations and emergency medical needs.
-              </p>
-              <ul className="space-y-2 text-sm text-gray-600">
-                <li className="flex items-start gap-2">
-                  <CheckCircle className="h-4 w-4 text-indigo-600 mt-0.5 flex-shrink-0" />
-                  <span>24/7 availability</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <CheckCircle className="h-4 w-4 text-indigo-600 mt-0.5 flex-shrink-0" />
-                  <span>Urgent consultations</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <CheckCircle className="h-4 w-4 text-indigo-600 mt-0.5 flex-shrink-0" />
-                  <span>Critical care support</span>
-                </li>
-              </ul>
-            </div>
+              return (
+                <div
+                  key={service.name}
+                  className={`group relative rounded-2xl border bg-white border-purple-50 transition-all p-6 shadow-sm cursor-pointer hover:bg-gradient-to-b hover:from-purple-600 hover:to-indigo-600 hover:border-transparent hover:shadow-xl ${
+                    isLast ? 'lg:col-start-2' : ''
+                  }`}
+                >
+                  <div className="flex flex-col items-center gap-3 text-center">
+                    <div className="inline-flex h-12 w-12 items-center justify-center rounded-xl shadow-sm bg-purple-50 text-purple-600 group-hover:bg-purple-500 group-hover:text-white overflow-hidden transition-colors duration-300">
+                      {hasCustomImage ? (
+                        <img
+                          src={service.imageUrl as string}
+                          alt={service.name}
+                          className="service-icon h-8 w-8 object-contain transition-transform duration-300 group-hover:scale-110 group-hover:brightness-0 group-hover:invert"
+                        />
+                      ) : (
+                        <Icon className="h-6 w-6" />
+                      )}
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold text-purple-700 group-hover:text-white">
+                        {service.name}
+                      </h3>
+                      <p className="mt-1 text-sm leading-relaxed text-gray-600 group-hover:text-purple-100">
+                        {service.description}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
 
           {/* Pet Owner vs Clinic Staff Services */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-5xl mx-auto">
             {/* Pet Owner Services */}
             <div className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition-shadow">
               <div className="flex items-center gap-4 mb-6">
@@ -601,9 +690,9 @@ export function LandingPage() {
       </section>
 
       {/* Features Section */}
-      <section id="features" ref={featuresRef} className="bg-gray-50 py-20">
+      <section id="features" ref={featuresRef} className="bg-gray-50 py-14">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
+          <div className="text-center mb-10">
             <h2 className="text-4xl font-bold text-slate-800 mb-4">Why Choose FURSURE?</h2>
             <p className="text-xl text-gray-600">Modern, efficient, and user-friendly veterinary management</p>
           </div>
@@ -676,10 +765,112 @@ export function LandingPage() {
         </div>
       </section>
 
+      {/* Pet Nutrition / Shop Section */}
+      <section className="py-14 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-4">
+            <p className="text-sm uppercase tracking-[0.3em] text-purple-500">Pets Nutrition</p>
+            <h2 className="mt-4 text-3xl md:text-4xl font-bold text-slate-800">
+              Shop &amp; save up to <span className="text-purple-600">15% off</span> top pet food.
+            </h2>
+            <p className="mt-4 text-gray-600 max-w-2xl mx-auto">
+              Curated by veterinarians, loved by pets. High-quality treats, supplements, and essentials delivered to your clinic.
+            </p>
+          </div>
+
+          <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            {products.map((product) => (
+              <div
+                key={product.name}
+                className="group bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all overflow-hidden border border-gray-100 flex flex-col"
+              >
+                <div className="relative">
+                  <img
+                    src={product.image}
+                    alt={product.name}
+                    className="h-48 w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                  />
+                  <span className="absolute top-3 left-3 text-xs font-semibold px-3 py-1 rounded-full bg-white/90 text-purple-600 shadow-sm">
+                    {product.badge}
+                  </span>
+                </div>
+                <div className="p-4 flex flex-col flex-1">
+                  <h3 className="font-semibold text-slate-800 mb-1">{product.name}</h3>
+                  <p className="text-sm text-gray-600 flex-1">{product.description}</p>
+                  <button className="mt-4 inline-flex items-center justify-between text-sm font-semibold text-purple-600">
+                    View details
+                    <span className="ml-1 group-hover:translate-x-1 transition-transform">→</span>
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Customer Reviews Section */}
+      <section className="bg-gray-50 py-14">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-10">
+            <p className="text-sm uppercase tracking-[0.3em] text-purple-500">Happy Clients</p>
+            <h2 className="mt-4 text-3xl md:text-4xl font-bold text-slate-800">Loved by Pet Parents &amp; Clinics</h2>
+            <p className="mt-4 text-gray-600 max-w-2xl mx-auto">
+              Real stories from people who trust FURSURE to keep their pets healthy and clinics running smoothly.
+            </p>
+          </div>
+
+          <div className="relative">
+            <div className="grid md:grid-cols-3 gap-6">
+              {testimonials.map((testimonial, index) => (
+                <div
+                  key={testimonial.name}
+                  className={`transition-all duration-500 rounded-2xl border bg-white p-6 shadow-sm flex-col flex ${
+                    index === activeTestimonial
+                      ? 'scale-100 border-purple-200 shadow-xl'
+                      : 'scale-95 opacity-70 hover:scale-100 hover:opacity-100'
+                  }`}
+                >
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-10 h-10 rounded-full overflow-hidden">
+                      <img src={testimonial.avatar} alt={testimonial.name} className="w-full h-full object-cover" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-slate-800">{testimonial.name}</p>
+                      <p className="text-xs text-gray-500">{testimonial.role}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 mb-3">
+                    {Array.from({ length: testimonial.rating }).map((_, i) => (
+                      <span key={i} className="text-amber-400 text-sm">
+                        ★
+                      </span>
+                    ))}
+                  </div>
+                  <p className="text-sm text-gray-600 leading-relaxed flex-1">“{testimonial.quote}”</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-8 flex justify-center gap-2">
+              {testimonials.map((_, index) => (
+                <button
+                  key={index}
+                  onClick={() => setActiveTestimonial(index)}
+                  className={`h-2.5 w-2.5 rounded-full transition-all ${
+                    index === activeTestimonial ? 'bg-purple-600 w-6' : 'bg-purple-200 hover:bg-purple-400'
+                  }`}
+                  aria-label={`Show testimonial ${index + 1}`}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* FAQs Section */}
-      <section id="faq" ref={faqRef} className="py-20">
+      <section id="faq" ref={faqRef} className="py-14">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
+          <div className="text-center mb-10">
             <h2 className="text-4xl font-bold text-slate-800 mb-4">Frequently Asked Questions</h2>
             <p className="text-xl text-gray-600">Everything you need to know about FURSURE</p>
           </div>
@@ -710,7 +901,7 @@ export function LandingPage() {
       </section>
 
       {/* CTA Section */}
-      <section className="bg-gradient-to-r from-purple-600 to-indigo-600 py-16">
+      <section className="bg-gradient-to-r from-purple-600 to-indigo-600 py-12">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-3xl font-bold text-white mb-4">Ready to Get Started?</h2>
           <p className="text-xl text-purple-100 mb-8">
